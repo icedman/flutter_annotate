@@ -11,7 +11,7 @@ void dump(var elm) {
   }
   elm.children.forEach((c) {
     dump(c);
-    });
+  });
   print('</${elm.localName}>');
 }
 
@@ -19,10 +19,9 @@ void main() {
   File file = File('./article.html');
   file.readAsString().then((String contents) {
     //var sample = '<body>Hello world! <a href="www.html5rocks.com">HTML5 rocks!';
-      var document = parse(contents);
-      dump(document.firstChild);
-      //print(document.outerHtml);
-    
+    var document = parse(contents);
+    dump(document.firstChild);
+    //print(document.outerHtml);
   });
 
   runApp(const MyApp());
