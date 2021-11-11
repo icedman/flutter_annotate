@@ -28,6 +28,30 @@ Offset getExtents(style) {
     return Offset(fw, fh);
 }
 
+class HtmlSpan
+{
+  int index = 0;
+  int pos = 0;
+  int length = 0;
+  
+  bool bold = false;
+  bool italic = false;
+  bool underline = false;
+  double fontSize = 0;
+  Color color = Colors.black;
+  Color background = Colors.white;
+
+  bool isEqual(HtmlSpan s) {
+    return index == s.index &&
+      bold == s.bold &&
+      italic == s.italic &&
+      underline == s.underline &&
+      fontSize == s.fontSize &&
+      color == s.color &&
+      background == s.background;
+  }
+}
+
 class TextSpanWrapper extends TextSpan {
   int index = 0;
   double fw = 12;
