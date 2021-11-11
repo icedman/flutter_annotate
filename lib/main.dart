@@ -262,6 +262,7 @@ class _MyApp extends State<MyApp> {
                         }
 
                         List<InlineSpan> spans = <InlineSpan>[];
+                        List<HtmlSpan> _spans = <HtmlSpan>[];
 
                         // remove
                         List<String> styles = <String>[];
@@ -285,6 +286,15 @@ class _MyApp extends State<MyApp> {
                           var elm = doc?.elms[i];
                           if (elm != null) {
                             if (elm is Node) {
+                              HtmlSpan span = HtmlSpan(
+                                index: i,
+                                pos: 0,
+                                length: 0,
+                                bold: this.doc?.isBold(i) ?? true,
+                                italic: this.doc?.isItalic(i) ?? true,
+                                underline: this.doc?.isUnderline(i) ?? true,
+                                );
+
                               TextStyle style = TextStyle(
                                   color: Colors.black,
                                   fontFamily: 'Times',
@@ -305,6 +315,7 @@ class _MyApp extends State<MyApp> {
                                   index: i,
                                   fw: ext.dx,
                                   fh: ext.dy));
+                              _spans.add(span);
                             }
                           }
                         }
