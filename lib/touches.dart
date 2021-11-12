@@ -39,6 +39,11 @@ class TouchInputListener extends StatelessWidget {
               if (this.onDragUpdate != null) {
                 this.onDragUpdate?.call(child, details.globalPosition);
               }
+            }
+            ..onEnd = (DragEndDetails details) {
+              if (this.onDragEnd != null) {
+                this.onDragEnd?.call(child, Offset(0, 0));
+              }
             };
         },
       ),

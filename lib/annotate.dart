@@ -8,53 +8,76 @@ import 'package:html/parser.dart' show parse;
 import 'package:html/dom.dart' show Node;
 import 'package:html/dom_parsing.dart' show TreeVisitor;
 
-List<InlineSpan> injectHL(MyDoc? doc, List<InlineSpan> spans) {
-    List<InlineSpan> spns = <InlineSpan>[];
-    spans.forEach((s) {
-      TextSpanWrapper tsw = s as TextSpanWrapper;
-      TextStyle? style = s.style;
-      String? text = (s as TextSpan).text;
+List<InlineSpan> injectHL(AnnotateDoc? doc, List<HtmlSpan> spans) {
+  List<InlineSpan> spns = <InlineSpan>[];
+  List<HtmlSpan> hld = <HtmlSpan>[];
+  int start = -1;
+  int end = 0;
+  spans.forEach((s) {
+    var elm = doc?.elms[s.index];
+    if (start == -1) start = s.index;
+    end = s.index;
+    String text = '';
+    if (elm is Node) {
+      text = '${(elm as Node).text}';
+    }
+    s.text = text;
 
-      if (text == null || style == null) {
-        spns.add(s);
-        return;
+    for (int i = 0; i < text.length; i++) {
+      HtmlSpan ss = HtmlSpan(
+        index: s.index,
+        pos: i,
+        length: 1,
+        bold: s.bold,
+        italic: s.italic,
+        underline: s.underline,
+      );
+      ss.text = text.substring(ss.pos, ss.pos + ss.length);
+      ss.background = Color.fromRGBO(0, 0, 0, 0);
+
+      if (doc != null) {
+        doc.hl.forEach((hl) {
+          bool highlight = false;
+          if (ss.index >= hl.start.dx && ss.index <= hl.end.dx) {
+            highlight = true;
+          }
+          if (highlight) {
+            if (ss.index == hl.start.dx && ss.pos < hl.start.dy) {
+              highlight = false;
+            }
+          }
+          if (highlight) {
+            if (ss.index == hl.end.dx && ss.pos > hl.end.dy) {
+              highlight = false;
+            }
+          }
+          if (highlight) {
+            ss.background = hl.color;
+          }
+        });
       }
 
-      for (int i = 0; i < text.length; i++) {
-        if (doc != null) {
-          doc.hl.forEach((hl) {
-            if (tsw.index >= hl.start.dx && tsw.index < hl.end.dx) {
-              //print(
-              //    'HL! ${tsw.index} ${hl.start} ${hl.end} ${text} ${hl.color}');
-            }
-          });
+      if (hld.length > 0) {
+        if (hld[hld.length - 1].isEqual(ss)) {
+          hld[hld.length - 1].length++;
+          hld[hld.length - 1].text = text.substring(hld[hld.length - 1].pos,
+              hld[hld.length - 1].pos + hld[hld.length - 1].length);
+          continue;
         }
       }
 
-      spns.add(s);
-    });
-    return spns;
-  }
+      hld.add(ss);
+    }
+  });
 
-  List<InlineSpan> _injectHL(MyDoc? doc, List<HtmlSpan> spans) {
-    List<InlineSpan> spns = <InlineSpan>[];
-    spans.forEach((s) {
+  spns.add(TextSpanWrapper(
+      text: '${start}-${end}', style: TextStyle(color: Colors.red)));
 
-      //for (int i = 0; i < text.length; i++) {
-      //  if (this.doc != null) {
-      //    this.doc?.hl.forEach((hl) {
-      //      if (tsw.index >= hl.start.dx && tsw.index < hl.end.dx) {
-      //        print(
-      //            'HL! ${tsw.index} ${hl.start} ${hl.end} ${text} ${hl.color}');
-      //      }
-      //    });
-      //  }
-      //}
-
-      spns.add(s.toTextSpan(doc, 'xx'));
-    });
-    return spns;
-  }
+  hld.forEach((s) {
+    spns.add(s.toTextSpan(doc, s.text));
+  });
+  return spns;
+}
 
 Offset getExtents(style) {
   final TextPainter textPainter = TextPainter(
@@ -75,16 +98,16 @@ class HL {
 
 class HtmlSpan {
   HtmlSpan({
-      int this.index = 0,
-      int this.pos = 0,
-      int this.length = 0,
-      bool this.bold = false,
-      bool this.italic = false,
-      bool this.underline = false,
-      double this.fontSize = 12,
-      Color this.color = Colors.black,
-      Color this.background = Colors.white,  
-    });
+    int this.index = 0,
+    int this.pos = 0,
+    int this.length = 0,
+    bool this.bold = false,
+    bool this.italic = false,
+    bool this.underline = false,
+    double this.fontSize = 24,
+    Color this.color = Colors.black,
+    Color this.background = Colors.white,
+  });
 
   int index = 0;
   int pos = 0;
@@ -96,6 +119,7 @@ class HtmlSpan {
   double fontSize = 0;
   Color color = Colors.black;
   Color background = Colors.white;
+  String text = '';
 
   bool isEqual(HtmlSpan s) {
     return index == s.index &&
@@ -107,25 +131,36 @@ class HtmlSpan {
         background == s.background;
   }
 
-  TextSpanWrapper toTextSpan(MyDoc? doc, String text) {
+  TextSpanWrapper toTextSpan(AnnotateDoc? doc, String text) {
     if (doc == null) {
       return TextSpanWrapper(text: text);
     }
+
+    // Paint? paint;
+    // if (background.opacity > 0) {
+    //   paint = Paint()
+    //     ..color = background
+    //     ..style = PaintingStyle.fill
+    //     ..strokeWidth = 2;
+    // }
+
     TextStyle style = TextStyle(
       color: Colors.black,
       fontFamily: 'Times',
       fontSize: fontSize,
-      //fontWeight: doc?.isBold(i)
-      //    ? FontWeight.bold
-      //    : FontWeight.normal,
-      //fontStyle: doc?.isItalic(i)
-      //    ? FontStyle.italic
-      //    : FontStyle.normal,
-      //decoration: doc?.isUnderline(i)
-      //    ? TextDecoration.underline
-      //    : TextDecoration.none
+      fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+      fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+      decoration: underline ? TextDecoration.underline : TextDecoration.none,
+      backgroundColor: background,
+      // background: paint
     );
     Offset ext = getExtents(style);
+
+    int p = pos;
+    int l = length;
+    if (p + l > text.length) {
+      l = text.length - p;
+    }
     return TextSpanWrapper(
         text: text,
         style: style,
@@ -172,65 +207,22 @@ class TextSpanWrapper extends TextSpan {
             spellOut: spellOut);
 }
 
-bool isStyle(n) {
-  switch (n.localName) {
-    case 'b':
-    case 'u':
-    case 'em':
-    case 'i':
-    case 'h1':
-    case 'h2':
-    case 'h3':
-    case 'h4':
-    case 'h5':
-    case 'h6':
-    case 'strong':
-    case 'center':
-    case 'blockquote':
-    case 'table':
-    case 'tr':
-    case 'td':
-      return true;
-  }
-  return false;
-}
-
-bool isBreak(n) {
-  switch (n.localName) {
-    case 'br':
-    case 'table':
-      return true;
-  }
-  return false;
-}
-
-bool isBreakWithin(n) {
-  switch (n.localName) {
-    case 'h1':
-    case 'h2':
-    case 'h3':
-    case 'h4':
-    case 'h5':
-    case 'h6':
-    case 'center':
-    case 'blockquote':
-      return true;
-  }
-  return false;
-}
-
-class MyDoc {
+class AnnotateDoc {
   var document;
   var elms = <Object>[];
   var breaks = <int>[];
   var hl = <HL>[];
 
-  MyDoc() {
-    HL _hl = HL();
-    _hl.start = Offset(24, 44);
-    _hl.end = Offset(50, 509);
-    hl.add(_hl);
-  }
+  // AnnotateDoc() {
+  // HL _hl = HL();
+  // _hl.start = Offset(26, 0);
+  // _hl.end = Offset(50, 10);
+  // hl.add(_hl);
+  // _hl = HL();
+  // _hl.start = Offset(75, 17);
+  // _hl.end = Offset(79, 3);
+  // hl.add(_hl);
+  // }
 
   bool isBold(int index, {int end = 0}) {
     int l = elms.length;
@@ -373,7 +365,7 @@ class MyDoc {
   }
 }
 
-class MyVisitor extends TreeVisitor {
+class AnnotateTreeVisitor extends TreeVisitor {
   var doc;
   List<int> withinTable = <int>[];
 
@@ -417,5 +409,52 @@ class MyVisitor extends TreeVisitor {
     if (isTable) {
       withinTable.removeAt(0);
     }
+  }
+
+  bool isStyle(n) {
+    switch (n.localName) {
+      case 'b':
+      case 'u':
+      case 'em':
+      case 'i':
+      case 'h1':
+      case 'h2':
+      case 'h3':
+      case 'h4':
+      case 'h5':
+      case 'h6':
+      case 'strong':
+      case 'center':
+      case 'blockquote':
+      case 'table':
+      case 'tr':
+      case 'td':
+        return true;
+    }
+    return false;
+  }
+
+  bool isBreak(n) {
+    switch (n.localName) {
+      case 'br':
+      case 'table':
+        return true;
+    }
+    return false;
+  }
+
+  bool isBreakWithin(n) {
+    switch (n.localName) {
+      case 'h1':
+      case 'h2':
+      case 'h3':
+      case 'h4':
+      case 'h5':
+      case 'h6':
+      case 'center':
+      case 'blockquote':
+        return true;
+    }
+    return false;
   }
 }
