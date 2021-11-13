@@ -8,10 +8,11 @@ import 'package:html/parser.dart' show parse;
 import 'package:html/dom.dart' show Node;
 import 'package:html/dom_parsing.dart' show TreeVisitor;
 
+const bool debugParagraphs = false;
 const String defaultFamily = 'FiraCode';
 const double defaultSize = 20;
 
-List<InlineSpan> injectHL(AnnotateDoc? doc, List<HtmlSpan> spans) {
+List<InlineSpan> injectHL(AnnotateDoc? doc, List<HL> hl, List<HtmlSpan> spans) {
   List<InlineSpan> spns = <InlineSpan>[];
   List<HtmlSpan> hld = <HtmlSpan>[];
   int start = -1;
@@ -40,7 +41,7 @@ List<InlineSpan> injectHL(AnnotateDoc? doc, List<HtmlSpan> spans) {
       ss.background = Color.fromRGBO(0, 0, 0, 0);
 
       if (doc != null) {
-        doc.hl.forEach((hl) {
+        hl.forEach((hl) {
           bool highlight = false;
           if (ss.index >= hl.start.dx && ss.index <= hl.end.dx) {
             highlight = true;
@@ -74,8 +75,10 @@ List<InlineSpan> injectHL(AnnotateDoc? doc, List<HtmlSpan> spans) {
     }
   });
 
+  if (debugParagraphs) {
     spns.add(TextSpanWrapper(
         text: '${start}-${end}', style: TextStyle(color: Colors.red)));
+  }
 
   hld.forEach((s) {
     spns.add(s.toTextSpan(doc, s.text));
@@ -95,11 +98,10 @@ Offset getExtents(style) {
 }
 
 class HL {
-  HL({
-    Offset this.start = const Offset(0,0),
-    Offset this.end = const Offset(0,0),
-    Color this.color = Colors.red
-  });
+  HL(
+      {Offset this.start = const Offset(0, 0),
+      Offset this.end = const Offset(0, 0),
+      Color this.color = Colors.red});
 
   Offset start = Offset(0, 0);
   Offset end = Offset(0, 0);
@@ -222,7 +224,8 @@ class TextSpanWrapper extends TextSpan {
 }
 
 class Marker {
-  Marker(String this.elm, Node? this.node, { int this.start: 0, int this.end: 0});
+  Marker(String this.elm, Node? this.node,
+      {int this.start: 0, int this.end: 0});
   String elm = '';
   Node? node;
   int start = 0;
@@ -235,15 +238,13 @@ class AnnotateDoc {
   var document;
   var elms = <Object>[];
   var breaks = <int>[];
-  var hl = <HL>[];
 
-  bool isWithinMarkup(List<String> markers, int index, {int end = 0})
-  {
+  bool isWithinMarkup(List<String> markers, int index, {int end = 0}) {
     for (int i = index; i > 0; i--) {
       var elm = elms[i];
       if (elm is Marker) {
         Marker m = elm as Marker;
-        for(int j = 0; j<markers.length; j++) {
+        for (int j = 0; j < markers.length; j++) {
           if (m.elm == markers[j]) {
             if (m.end > index) {
               return true;
@@ -257,32 +258,32 @@ class AnnotateDoc {
   }
 
   bool isBold(int index, {int end = 0}) {
-    return isWithinMarkup(['b','strong','h1','h2','h3','h4','h5','h6'], index, end:end);
+    return isWithinMarkup(
+        ['b', 'strong', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'], index,
+        end: end);
   }
 
   bool isTable(int index, {int end = 0}) {
-    return isWithinMarkup(['table'], index, end:end);
+    return isWithinMarkup(['table'], index, end: end);
   }
 
   bool isItalic(int index, {int end = 0}) {
-    return isWithinMarkup(['i', 'em'], index, end:end);
+    return isWithinMarkup(['i', 'em'], index, end: end);
   }
 
   bool isUnderline(int index, {int end = 0}) {
-    return isWithinMarkup(['u'], index, end:end);
+    return isWithinMarkup(['u'], index, end: end);
   }
 
   bool isSup(int index, {int end = 0}) {
-    return isWithinMarkup(['sup'], index, end:end);
+    return isWithinMarkup(['sup'], index, end: end);
   }
 
-  bool isCenter(int index, {int end = 0})
-  {
+  bool isCenter(int index, {int end = 0}) {
     return isWithinMarkup(['center', 'div:center'], index, end: end);
   }
 
-  bool isBlock(int index, {int end = 0})
-  {
+  bool isBlock(int index, {int end = 0}) {
     return isWithinMarkup(['blockquote'], index, end: end);
   }
 }
