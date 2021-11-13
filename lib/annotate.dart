@@ -8,6 +8,9 @@ import 'package:html/parser.dart' show parse;
 import 'package:html/dom.dart' show Node;
 import 'package:html/dom_parsing.dart' show TreeVisitor;
 
+const String defaultFamily = 'FiraCode';
+const double defaultSize = 20;
+
 List<InlineSpan> injectHL(AnnotateDoc? doc, List<HtmlSpan> spans) {
   List<InlineSpan> spns = <InlineSpan>[];
   List<HtmlSpan> hld = <HtmlSpan>[];
@@ -31,6 +34,7 @@ List<InlineSpan> injectHL(AnnotateDoc? doc, List<HtmlSpan> spans) {
         bold: s.bold,
         italic: s.italic,
         underline: s.underline,
+        sup: s.sup,
       );
       ss.text = text.substring(ss.pos, ss.pos + ss.length);
       ss.background = Color.fromRGBO(0, 0, 0, 0);
@@ -70,8 +74,8 @@ List<InlineSpan> injectHL(AnnotateDoc? doc, List<HtmlSpan> spans) {
     }
   });
 
-  spns.add(TextSpanWrapper(
-      text: '${start}-${end}', style: TextStyle(color: Colors.red)));
+    spns.add(TextSpanWrapper(
+        text: '${start}-${end}', style: TextStyle(color: Colors.red)));
 
   hld.forEach((s) {
     spns.add(s.toTextSpan(doc, s.text));
@@ -91,6 +95,12 @@ Offset getExtents(style) {
 }
 
 class HL {
+  HL({
+    Offset this.start = const Offset(0,0),
+    Offset this.end = const Offset(0,0),
+    Color this.color = Colors.red
+  });
+
   Offset start = Offset(0, 0);
   Offset end = Offset(0, 0);
   Color color = Colors.red;
@@ -104,7 +114,8 @@ class HtmlSpan {
     bool this.bold = false,
     bool this.italic = false,
     bool this.underline = false,
-    double this.fontSize = 24,
+    bool this.sup = false,
+    double this.fontSize = defaultSize,
     Color this.color = Colors.black,
     Color this.background = Colors.white,
   });
@@ -116,6 +127,7 @@ class HtmlSpan {
   bool bold = false;
   bool italic = false;
   bool underline = false;
+  bool sup = false;
   double fontSize = 0;
   Color color = Colors.black;
   Color background = Colors.white;
@@ -126,6 +138,7 @@ class HtmlSpan {
         bold == s.bold &&
         italic == s.italic &&
         underline == s.underline &&
+        sup == s.sup &&
         fontSize == s.fontSize &&
         color == s.color &&
         background == s.background;
@@ -140,14 +153,14 @@ class HtmlSpan {
     // if (background.opacity > 0) {
     //   paint = Paint()
     //     ..color = background
-    //     ..style = PaintingStyle.fill
+    //     ..style = PaintingStyle.stroke
     //     ..strokeWidth = 2;
     // }
 
     TextStyle style = TextStyle(
       color: Colors.black,
-      fontFamily: 'Times',
-      fontSize: fontSize,
+      fontFamily: defaultFamily,
+      fontSize: sup ? fontSize * 0.75 : fontSize,
       fontWeight: bold ? FontWeight.bold : FontWeight.normal,
       fontStyle: italic ? FontStyle.italic : FontStyle.normal,
       decoration: underline ? TextDecoration.underline : TextDecoration.none,
@@ -163,6 +176,7 @@ class HtmlSpan {
     }
     return TextSpanWrapper(
         text: text,
+        mouseCursor: sup ? MaterialStateMouseCursor.clickable : null,
         style: style,
         index: index,
         pos: pos,
@@ -207,161 +221,69 @@ class TextSpanWrapper extends TextSpan {
             spellOut: spellOut);
 }
 
+class Marker {
+  Marker(String this.elm, Node? this.node, { int this.start: 0, int this.end: 0});
+  String elm = '';
+  Node? node;
+  int start = 0;
+  int end = 0;
+}
+
 class AnnotateDoc {
+  AnnotateDoc(var this.document);
+
   var document;
   var elms = <Object>[];
   var breaks = <int>[];
   var hl = <HL>[];
 
-  // AnnotateDoc() {
-  // HL _hl = HL();
-  // _hl.start = Offset(26, 0);
-  // _hl.end = Offset(50, 10);
-  // hl.add(_hl);
-  // _hl = HL();
-  // _hl.start = Offset(75, 17);
-  // _hl.end = Offset(79, 3);
-  // hl.add(_hl);
-  // }
-
-  bool isBold(int index, {int end = 0}) {
-    int l = elms.length;
-    if (l != null) {
-      for (int i = index; i < l; i++) {
-        if (end != 0 && i > end) break;
-        var elm = elms[i];
-        if (elm is String) {
-          if (elm == '/b' ||
-              elm == '/strong' ||
-              elm == '/h1' ||
-              elm == '/h2' ||
-              elm == '/h3' ||
-              elm == '/h4') {
-            return true;
-          }
-          if (elm == 'b' ||
-              elm == 'strong' ||
-              elm == 'h1' ||
-              elm == 'h2' ||
-              elm == 'h3' ||
-              elm == 'h4') {
-            return false;
+  bool isWithinMarkup(List<String> markers, int index, {int end = 0})
+  {
+    for (int i = index; i > 0; i--) {
+      var elm = elms[i];
+      if (elm is Marker) {
+        Marker m = elm as Marker;
+        for(int j = 0; j<markers.length; j++) {
+          if (m.elm == markers[j]) {
+            if (m.end > index) {
+              return true;
+            }
           }
         }
       }
+      if (index - i > 20) return false;
     }
     return false;
+  }
+
+  bool isBold(int index, {int end = 0}) {
+    return isWithinMarkup(['b','strong','h1','h2','h3','h4','h5','h6'], index, end:end);
   }
 
   bool isTable(int index, {int end = 0}) {
-    int l = elms.length;
-    if (l != null) {
-      for (int i = index; i < l; i++) {
-        if (end != 0 && i > end) break;
-        var elm = elms[i];
-        if (elm is String) {
-          if (elm == '/table') {
-            return true;
-          }
-          if (elm == 'table') {
-            return false;
-          }
-        }
-      }
-    }
-    return false;
+    return isWithinMarkup(['table'], index, end:end);
   }
 
   bool isItalic(int index, {int end = 0}) {
-    int l = elms.length;
-    if (l != null) {
-      for (int i = index; i < l; i++) {
-        if (end != 0 && i > end) break;
-        var elm = elms[i];
-        if (elm is String) {
-          if (elm == '/i' || elm == '/em') {
-            return true;
-          }
-          if (elm == 'i' || elm == 'em') {
-            return false;
-          }
-        }
-      }
-    }
-    return false;
+    return isWithinMarkup(['i', 'em'], index, end:end);
   }
 
   bool isUnderline(int index, {int end = 0}) {
-    int l = elms.length;
-    if (l != null) {
-      for (int i = index; i < l; i++) {
-        if (end != 0 && i > end) break;
-        var elm = elms[i];
-        if (elm is String) {
-          if (elm == '/u') {
-            return true;
-          }
-          if (elm == 'u') {
-            return false;
-          }
-        }
-      }
-    }
-    return false;
+    return isWithinMarkup(['u'], index, end:end);
   }
 
-  bool isCenter(int index, {int end = 0}) {
-    bool checkDiv = false;
-    int l = elms.length;
-    if (l != null) {
-      for (int i = index; i < l; i++) {
-        if (end != 0 && i > end) break;
-        var elm = elms[i];
-        if (elm is String) {
-          if (elm == '/center') {
-            return true;
-          }
-          if (elm == '/div') {
-            checkDiv = true;
-          }
-          if (elm == 'center') {
-            break;
-          }
-        }
-      }
-
-      if (!checkDiv) return false;
-
-      for (int i = index; i > 0; i--) {
-        var elm = elms[i];
-        if (elm is String) {
-          if (elm == 'div:center') {
-            return true;
-          }
-          if (elm.startsWith('div')) return false;
-        }
-      }
-    }
-    return false;
+  bool isSup(int index, {int end = 0}) {
+    return isWithinMarkup(['sup'], index, end:end);
   }
 
-  bool isBlock(int index, {int end = 0}) {
-    int l = elms.length;
-    if (l != null) {
-      for (int i = index; i < l; i++) {
-        if (end != 0 && i > end) break;
-        var elm = elms[i];
-        if (elm is String) {
-          if (elm == '/blockquote') {
-            return true;
-          }
-          if (elm == 'blockquote') {
-            return false;
-          }
-        }
-      }
-    }
-    return false;
+  bool isCenter(int index, {int end = 0})
+  {
+    return isWithinMarkup(['center', 'div:center'], index, end: end);
+  }
+
+  bool isBlock(int index, {int end = 0})
+  {
+    return isWithinMarkup(['blockquote'], index, end: end);
   }
 }
 
@@ -377,15 +299,19 @@ class AnnotateTreeVisitor extends TreeVisitor {
   @override
   void visitElement(n) {
     bool style = false;
-    if (isStyle(n)) {
+    Marker startMarker = Marker('', n);
+    if (isTrackedMarkup(n)) {
       style = true;
-      doc.elms.add(n.localName);
+      startMarker = Marker('${n.localName}', n);
+      startMarker.start = doc.elms.length;
+      doc.elms.add(startMarker);
     }
     if (n.localName == 'div') {
       if (n.attributes['align'] != null) {
         var align = '${n.attributes['align']}'.toLowerCase();
-        //print('${n.localName}:${align}');
-        doc.elms.add('${n.localName}:${align}');
+        startMarker = Marker('${n.localName}:${align}', n);
+        startMarker.start = doc.elms.length;
+        doc.elms.add(startMarker);
         style = true;
       }
     }
@@ -399,8 +325,9 @@ class AnnotateTreeVisitor extends TreeVisitor {
     }
     visitChildren(n);
     if (style) {
-      doc.elms.add('/${n.localName}');
-      //print('[/${n.localName}]');
+      Marker endMarker = Marker('/${n.localName}', n);
+      startMarker.end = doc.elms.length;
+      doc.elms.add(endMarker);
     }
     if (withinTable.length == 0 && isBreakWithin(n)) {
       doc.breaks.add(doc.elms.length);
@@ -411,7 +338,7 @@ class AnnotateTreeVisitor extends TreeVisitor {
     }
   }
 
-  bool isStyle(n) {
+  bool isTrackedMarkup(n) {
     switch (n.localName) {
       case 'b':
       case 'u':
@@ -429,6 +356,7 @@ class AnnotateTreeVisitor extends TreeVisitor {
       case 'table':
       case 'tr':
       case 'td':
+      case 'sup':
         return true;
     }
     return false;

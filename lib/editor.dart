@@ -11,6 +11,8 @@ import 'package:html/dom_parsing.dart' show TreeVisitor;
 import 'touches.dart';
 import 'annotate.dart';
 
+const double paragraphSpacing = 24;
+
 class Editor extends StatefulWidget {
   Editor({Key? this.key, AnnotateDoc? this.doc}) : super();
 
@@ -138,6 +140,7 @@ class _Editor extends State<Editor> {
     if (offset.dx > 0) {
       var elm = this.doc?.elms[offset.dx.toInt()];
       print(offset);
+      print((elm as Node).text);
     }
   }
 
@@ -214,21 +217,22 @@ class _Editor extends State<Editor> {
     if (this.doc != null) {
       for (int i = start; i < end; i++) {
         var elm = this.doc?.elms[i];
-        if (elm is String) {
-          if (elm == 'tr') {
+        if (elm is Marker) {
+          Marker m = elm as Marker;
+          if (m.elm == 'tr') {
             cells = <Widget>[];
           }
-          if (elm == 'td') {
+          if (m.elm == 'td') {
             spans = <HtmlSpan>[];
           }
-          if (elm == '/td') {
+          if (m.elm == '/td') {
             cells.add(Expanded(
                 flex: 1,
                 child: RichText(
                     text: TextSpan(children: injectHL(this.doc, spans)))));
           }
-          if (elm == '/tr') {
-            rows.add(Row(children: cells));
+          if (m.elm == '/tr') {
+            rows.add(Padding(padding: EdgeInsets.only(bottom: 8), child: Row(children: cells)));
           }
         }
         if (elm is Node) {
@@ -239,6 +243,7 @@ class _Editor extends State<Editor> {
             bold: this.doc?.isBold(i) ?? true,
             italic: this.doc?.isItalic(i) ?? true,
             underline: this.doc?.isUnderline(i) ?? true,
+            sup: this.doc?.isSup(i) ?? true,
           );
           spans.add(span);
         }
@@ -336,6 +341,7 @@ class _Editor extends State<Editor> {
                                 bold: this.doc?.isBold(i) ?? true,
                                 italic: this.doc?.isItalic(i) ?? true,
                                 underline: this.doc?.isUnderline(i) ?? true,
+                                sup: this.doc?.isSup(i) ?? true,
                               );
                               spans.add(span);
                             }
@@ -352,12 +358,15 @@ class _Editor extends State<Editor> {
                                 left: padLeftRight,
                                 right: padLeftRight,
                                 bottom: 24),
-                            child: RichText(
-                                textAlign: center
-                                    ? TextAlign.center
-                                    : TextAlign.justify,
-                                text: TextSpan(
-                                    children: injectHL(this.doc, spans))));
+                              child: ClipRect(
+                                child: RichText(
+                                  textAlign: center
+                                      ? TextAlign.center
+                                      : TextAlign.justify,
+                                  text: TextSpan(
+                                      children: injectHL(this.doc, spans)))
+                              )
+                            );
                       }
                       return Container();
                     }))));
