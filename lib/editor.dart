@@ -9,70 +9,13 @@ import 'package:html/parser.dart' show parse;
 import 'package:html/dom.dart' show Node;
 import 'package:html/dom_parsing.dart' show TreeVisitor;
 
+import 'keys.dart';
 import 'touches.dart';
+import 'palette.dart';
 import 'annotate.dart';
 import 'providers.dart';
 
 const double paragraphSpacing = 24;
-
-class AnnotateTool extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    EditorModel editor = Provider.of<EditorModel>(context);
-    if (editor.currentHighlight() == -1) {
-      return Container();
-    }
-
-    final target = editor.currentHighlight();
-    return Positioned(
-        left: 20,
-        top: 20,
-        child: Container(
-          height: 30.0,
-          width: 180,
-          color: Colors.transparent,
-          child: Container(
-              decoration: BoxDecoration(
-                  color: Colors.grey,
-                  borderRadius: BorderRadius.all(const Radius.circular(8.0))
-                  // borderRadius: BorderRadius.only(
-                  //   topLeft: const Radius.circular(40.0),
-                  //   topRight: const Radius.circular(40.0),
-                  // )
-                  ),
-              child: Center(
-                child: RichText(text: TextSpan(children: [
-                  TextSpan(text: ' ${editor.currentHighlight()} '),
-                  TextSpan(text: ' red ',
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          editor.recolor(target, Colors.red);
-                          }
-                    ),
-                  TextSpan(text: ' blue ',
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          editor.recolor(target, Colors.blue);
-                          }
-                    ),
-                  TextSpan(text: ' yellow ',
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          editor.recolor(target, Colors.yellow);
-                          }
-                    ),
-                  TextSpan(text: ' delete ',
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          editor.deleteHighlight(target);
-                          }
-                    )
-                ]
-                )),
-              )),
-        ));
-  }
-}
 
 class Editor extends StatefulWidget {
   Editor({Key? this.key, AnnotateDoc? this.doc}) : super();
@@ -89,7 +32,36 @@ class _Editor extends State<Editor> {
 
   AnnotateDoc? doc;
   double fontSize = 24;
+  bool shifting = false;
+  bool ctrling = false;
   bool pulse = false;
+
+  final _scroller = ScrollController();
+  late FocusNode focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    focusNode = FocusNode();
+    _scroller.addListener(_onScroll);
+  }
+
+  Widget documentHeader() {
+    return Container();
+  }
+
+  List<Widget> tools() {
+    return [ AnnotateTool(), DocTool() ];
+  }
+
+  void _findPositioned(RenderObject? obj, List<RenderPositionedBox> res) {
+    if (obj is RenderPositionedBox) {
+      res.add(obj);
+    }
+    obj?.visitChildren((child) {
+      _findPositioned(child, res);
+    });
+  }
 
   void _findRenderParagraphs(RenderObject? obj, List<RenderParagraph> res) {
     if (obj is RenderParagraph) {
@@ -102,10 +74,10 @@ class _Editor extends State<Editor> {
 
   int findHighlight(Offset pos) {
     EditorModel editor = Provider.of<EditorModel>(context, listen: false);
-    int l = editor.hl.length;
+    int l = editor.hl().length;
     int idx = -1;
-    for (int i = l-1; i > - 1; i--) {
-      var hl = editor.hl[i];
+    for (int i = l - 1; i > -1; i--) {
+      var hl = editor.hl()[i];
       double start = hl.start.dx;
       double start_offset = hl.start.dy;
       double end = hl.end.dx;
@@ -134,14 +106,12 @@ class _Editor extends State<Editor> {
 
     print('hl:${idx}');
     return idx;
-    return -1;
   }
 
   Offset _screenToCursor(List<RenderParagraph> pars, Offset pos) {
     RenderObject? obj = context.findRenderObject();
     if (this.doc == null || obj == null) return Offset(-1, -1);
     RenderBox? box = obj as RenderBox;
-    // Offset thisPos = obj.localToGlobal(Offset(0, 0));
 
     // print('------------');
     // print(pos);
@@ -150,7 +120,7 @@ class _Editor extends State<Editor> {
     RenderParagraph? targetPar;
     int targetOffset = 0;
 
-    const double adjustX = 1;
+    const double adjustX = 2;
     const double adjustY = 1;
 
     // find paragraph
@@ -161,7 +131,6 @@ class _Editor extends State<Editor> {
 
       RenderBox? pbox = p as RenderBox;
       Offset pPos = pbox.localToGlobal(Offset(0, 0));
-      // print(pbox.localToGlobal(Offset(0,0)));
 
       TextSpan _t = p.text as TextSpan;
 
@@ -175,9 +144,7 @@ class _Editor extends State<Editor> {
           pos.dy + adjustY >= spanPos.dy - 20 &&
           pos.dy + adjustY < spanPos.dy + 20 + bounds.height) {
         targetPar = p;
-
         // print('${pos} ${spanPos} ${bounds}');
-
         break;
       }
     }
@@ -187,12 +154,17 @@ class _Editor extends State<Editor> {
       Rect bounds = Offset(0, 0) & targetPar.size;
 
       TextSpan? _t = targetPar.text as TextSpan;
-
       List<InlineSpan>? _c = _t.children;
+
       int textOffset = 0;
       bool found = false;
       int line = 0;
       int position = 0;
+
+      int nearestLine = 0;
+      int nearestPosition = 0;
+      double nearestDistance = -1;
+
       _c?.forEach((span) {
         if (!(span is TextSpanWrapper)) return;
         if (found) return;
@@ -214,9 +186,19 @@ class _Editor extends State<Editor> {
               pos.dy + adjustY <
                   spanPos.dy + 2 + (span as TextSpanWrapper).fh) {
             found = true;
-            position = (span as TextSpanWrapper).pos + i; // textOffset + i;
+            position = (span as TextSpanWrapper).pos + i;
             line = (span as TextSpanWrapper).index;
             break;
+          }
+
+          double dx = pos.dx - spanPos.dx;
+          double dy = pos.dy - spanPos.dy;
+          double d = dx * dx + dy * dy;
+          if (d < nearestDistance || nearestDistance == -1) {
+            nearestDistance = d;
+            nearestPosition =
+                (span as TextSpanWrapper).pos + i;
+            nearestLine = (span as TextSpanWrapper).index;
           }
         }
 
@@ -226,26 +208,58 @@ class _Editor extends State<Editor> {
         }
       });
 
+      if (!found) {
+        line = nearestLine;
+        position = nearestPosition;
+      }
+
       return Offset(line.toDouble(), position.toDouble());
     }
 
     return Offset(-1, -1);
   }
 
+  void _onScroll() {
+    EditorModel editor = Provider.of<EditorModel>(context, listen: false);
+    editor.showDocTool(_scroller.position.pixels == 0);
+  }
+
   void _onTapDown(Widget child, Offset pos) {
     RenderObject? obj = context.findRenderObject();
     if (this.doc == null || obj == null) return;
 
+    List<RenderPositionedBox> pbox = <RenderPositionedBox>[];
+    _findPositioned(obj, pbox);
+    for(int i=0; i<pbox.length; i++) {
+        RenderBox? box = pbox[i] as RenderBox;
+        Rect bounds = Offset(0, 0) & box.size;
+        Offset spanPos = box.localToGlobal(Offset(0,0));
+        if (pos.dx >= pos.dx &&
+            pos.dx < pos.dx + bounds.width &&
+            pos.dy >= spanPos.dy - 20 &&
+            pos.dy < spanPos.dy + 20 + bounds.height) {
+          // within toolbar
+          return;
+        }
+    }
+
     List<RenderParagraph> pars = <RenderParagraph>[];
     _findRenderParagraphs(obj, pars);
 
+    EditorModel editor = Provider.of<EditorModel>(context, listen: false);
     Offset offset = _screenToCursor(pars, pos);
     if (offset.dx > 0) {
-      var elm = this.doc?.elms[offset.dx.toInt()];
-      // print(offset);
+      if (shifting) {
+        end = offset;
+        _updateLastSelection(start, end);
+        return;
+      } else {
+        start = offset;
+      }
+      // var elm = this.doc?.elms[offset.dx.toInt()];
       // print((elm as Node).text);
-      EditorModel editor = Provider.of<EditorModel>(context, listen: false);
-      editor.beginHighlight(findHighlight(offset));
+      int hl = findHighlight(offset);
+      editor.selectHighlight(hl);
     }
   }
 
@@ -261,20 +275,9 @@ class _Editor extends State<Editor> {
     Offset offset = _screenToCursor(pars, pos);
     if (offset.dx > 0) {
       var elm = this.doc?.elms[offset.dx.toInt()];
-      if (offset.dx != -1) {
-        start = offset;
-
-        EditorModel editor = Provider.of<EditorModel>(context, listen: false);
-
-        HL sel = HL()
-          ..start = start
-          ..end = start
-          ..color = editor.color;
-
-        editor.hl.add(sel);
-        editor.beginHighlight(editor.hl.length-1);
-        editor.notifyListeners();
-      }
+      start = offset;
+      EditorModel editor = Provider.of<EditorModel>(context, listen: false);
+      editor.beginSelect(start, end);
     }
   }
 
@@ -285,21 +288,8 @@ class _Editor extends State<Editor> {
       p2 = p3;
     }
 
-    // print('${p1} ${p2}');
-
     EditorModel editor = Provider.of<EditorModel>(context, listen: false);
-
-    if (this.doc != null) {
-      int? idx = editor.hl.length;
-      if (idx != null) {
-        editor.hl[idx - 1].start = p1;
-        editor.hl[idx - 1].end = p2;
-        editor.notifyListeners();
-        // setState(() {
-        //   pulse = !pulse;
-        // });
-      }
-    }
+    editor.updateSelection(p1, p2);
   }
 
   void _onDragUpdate(Widget child, Offset pos) {
@@ -343,7 +333,8 @@ class _Editor extends State<Editor> {
             cells.add(Expanded(
                 flex: 1,
                 child: RichText(
-                    text: TextSpan(children: injectHL(this.doc, editor.hl, spans)))));
+                    text: TextSpan(
+                        children: injectHL(this.doc, editor.hl(), spans)))));
           }
           if (m.elm == '/tr') {
             rows.add(Padding(
@@ -374,25 +365,30 @@ class _Editor extends State<Editor> {
   }
 
   Widget buildTextList(BuildContext context) {
-    int? count = 0;
+    int? count = 1;
 
     List<Widget> children = <Widget>[];
     if (this.doc != null) {
       count = this.doc?.breaks.length;
       if (count != null) {
-        count += 2;
+        count += 3;
       }
     }
 
     EditorModel editor = Provider.of<EditorModel>(context);
-    print(editor.currentHighlight());
-
     return ListView.builder(
+        controller: _scroller,
+        physics: const AlwaysScrollableScrollPhysics(),
         itemCount: count,
         itemBuilder: (context, index) {
+          if (index == 0) {
+            return documentHeader();
+          }
           bool block = false;
           bool center = false;
           bool table = false;
+
+          index--;
 
           if (this.doc != null) {
             int? ii = index;
@@ -466,26 +462,61 @@ class _Editor extends State<Editor> {
                     child: RichText(
                         textAlign:
                             center ? TextAlign.center : TextAlign.justify,
-                        text: TextSpan(children: injectHL(this.doc, editor.hl, spans)))));
+                        text: TextSpan(
+                            children:
+                                injectHL(this.doc, editor.hl(), spans)))
+                )
+            );
           }
           return Container();
         });
   }
 
+  void _onKeyInputMods(bool shift, bool ctrl) {
+    setState(() {
+      shifting = shift;
+      ctrling = ctrl;
+    });
+  }
+
+  void _onKeyInputSequence(String text) {
+    EditorModel editor = Provider.of<EditorModel>(context, listen: false);
+    switch(text) {
+      case 'ctrl+1':
+        editor.setColorByIndex(int.parse(text.split('+')[1])-1);
+        break;
+      case 'ctrl+2':
+        editor.setColorByIndex(int.parse(text.split('+')[1])-1);
+        break;
+      case 'ctrl+3':
+        editor.setColorByIndex(int.parse(text.split('+')[1])-1);
+        break;
+      case 'ctrl+4':
+        editor.setColorByIndex(int.parse(text.split('+')[1])-1);
+        break;
+      case 'ctrl+x':
+        editor.deleteHighlight(editor.currentHighlight());
+        break;
+      case 'ctrl+h':
+        editor.toggleHighlight();
+        break;
+    }
+    // print(text);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-        title: 'Flutter Demo',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-        ),
-        home: Scaffold(
-            body: TouchInputListener(
-                onTapDown: _onTapDown,
-                onDragStart: _onDragStart,
-                onDragUpdate: _onDragUpdate,
-                onDragEnd: _onDragEnd,
-                child: Stack(
-                    children: [buildTextList(context), AnnotateTool()]))));
+    final screenWidth = MediaQuery.of(context).size.width;
+    List<Widget> children = [buildTextList(context), ...tools()];
+    return KeyInputListener(
+                focusNode: focusNode,
+                // onKeyInputText: _onKeyInputText,
+                onKeyInputSequence: _onKeyInputSequence,
+                onKeyInputMods: _onKeyInputMods,
+                child: TouchInputListener(
+                    onTapDown: _onTapDown,
+                    onDragStart: _onDragStart,
+                    onDragUpdate: _onDragUpdate,
+                    child: Stack(children: children)));
   }
 }

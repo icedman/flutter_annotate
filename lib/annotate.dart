@@ -9,8 +9,9 @@ import 'package:html/dom.dart' show Node;
 import 'package:html/dom_parsing.dart' show TreeVisitor;
 
 const bool debugParagraphs = false;
-const String defaultFamily = 'FiraCode';
-const double defaultSize = 20;
+// const String defaultFamily = 'FiraCode';
+const String defaultFamily = 'Times';
+const double defaultSize = 24;
 
 List<InlineSpan> injectHL(AnnotateDoc? doc, List<HL> hl, List<HtmlSpan> spans) {
   List<InlineSpan> spns = <InlineSpan>[];
@@ -26,6 +27,7 @@ List<InlineSpan> injectHL(AnnotateDoc? doc, List<HL> hl, List<HtmlSpan> spans) {
       text = '${(elm as Node).text}';
     }
     s.text = text;
+    if (s.text.length == 0) return;
 
     for (int i = 0; i < text.length; i++) {
       HtmlSpan ss = HtmlSpan(
@@ -99,13 +101,16 @@ Offset getExtents(style) {
 
 class HL {
   HL(
-      {Offset this.start = const Offset(0, 0),
-      Offset this.end = const Offset(0, 0),
-      Color this.color = Colors.red});
+      {Offset this.start = const Offset(-1, -1),
+      Offset this.end = const Offset(-1, -1),
+      Color this.color = Colors.red,
+      int this.colorIndex = 0,
+      });
 
-  Offset start = Offset(0, 0);
-  Offset end = Offset(0, 0);
+  Offset start = Offset(-1, -1);
+  Offset end = Offset(-1, -1);
   Color color = Colors.red;
+  int colorIndex = 0;
 }
 
 class HtmlSpan {
@@ -233,11 +238,23 @@ class Marker {
 }
 
 class AnnotateDoc {
-  AnnotateDoc(var this.document);
+  AnnotateDoc({var this.document = null});
 
   var document;
   var elms = <Object>[];
   var breaks = <int>[];
+
+  Future<bool> load(String path) async
+  {
+    File file = File(path);
+    String contents = await file.readAsString();
+    var document = parse(contents);
+    var tree = AnnotateTreeVisitor();
+    tree.doc = this;
+    tree.visit(document);
+    this.document = document;
+    return true;
+  }
 
   bool isWithinMarkup(List<String> markers, int index, {int end = 0}) {
     for (int i = index; i > 0; i--) {

@@ -53,7 +53,6 @@ class TouchInputListener extends StatelessWidget {
         instance
           ..onTapDown = (TapDownDetails details) {
             tapPosition = details.globalPosition;
-            // FocusScope.of(context).requestFocus(child.focusNode());
             if (this.onTapDown != null) {
               this.onTapDown?.call(child, details.globalPosition);
             }

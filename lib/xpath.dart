@@ -1,12 +1,7 @@
-import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/rendering.dart';
-import 'package:html/parser.dart' show parse;
-import 'package:html/dom.dart'; // show Node, Element;
-import 'package:html/dom_parsing.dart' show TreeVisitor;
+import 'package:html/dom.dart';
 
 import 'annotate.dart';
 
