@@ -42,6 +42,7 @@ class _Editor extends State<Editor> {
   @override
   void initState() {
     super.initState();
+
     focusNode = FocusNode();
     _scroller.addListener(_onScroll);
   }
@@ -51,7 +52,7 @@ class _Editor extends State<Editor> {
   }
 
   List<Widget> tools() {
-    return [ AnnotateTool(), DocTool() ];
+    return [AnnotateTool(), DocTool()];
   }
 
   void _findPositioned(RenderObject? obj, List<RenderPositionedBox> res) {
@@ -196,8 +197,7 @@ class _Editor extends State<Editor> {
           double d = dx * dx + dy * dy;
           if (d < nearestDistance || nearestDistance == -1) {
             nearestDistance = d;
-            nearestPosition =
-                (span as TextSpanWrapper).pos + i;
+            nearestPosition = (span as TextSpanWrapper).pos + i;
             nearestLine = (span as TextSpanWrapper).index;
           }
         }
@@ -230,17 +230,17 @@ class _Editor extends State<Editor> {
 
     List<RenderPositionedBox> pbox = <RenderPositionedBox>[];
     _findPositioned(obj, pbox);
-    for(int i=0; i<pbox.length; i++) {
-        RenderBox? box = pbox[i] as RenderBox;
-        Rect bounds = Offset(0, 0) & box.size;
-        Offset spanPos = box.localToGlobal(Offset(0,0));
-        if (pos.dx >= pos.dx &&
-            pos.dx < pos.dx + bounds.width &&
-            pos.dy >= spanPos.dy - 20 &&
-            pos.dy < spanPos.dy + 20 + bounds.height) {
-          // within toolbar
-          return;
-        }
+    for (int i = 0; i < pbox.length; i++) {
+      RenderBox? box = pbox[i] as RenderBox;
+      Rect bounds = Offset(0, 0) & box.size;
+      Offset spanPos = box.localToGlobal(Offset(0, 0));
+      if (pos.dx >= pos.dx &&
+          pos.dx < pos.dx + bounds.width &&
+          pos.dy >= spanPos.dy - 20 &&
+          pos.dy < spanPos.dy + 20 + bounds.height) {
+        // within toolbar
+        return;
+      }
     }
 
     List<RenderParagraph> pars = <RenderParagraph>[];
@@ -334,7 +334,8 @@ class _Editor extends State<Editor> {
                 flex: 1,
                 child: RichText(
                     text: TextSpan(
-                        children: injectHL(this.doc, editor.hl(), spans)))));
+                        children:
+                            buildParagraphs(this.doc, editor.hl(), spans)))));
           }
           if (m.elm == '/tr') {
             rows.add(Padding(
@@ -463,10 +464,8 @@ class _Editor extends State<Editor> {
                         textAlign:
                             center ? TextAlign.center : TextAlign.justify,
                         text: TextSpan(
-                            children:
-                                injectHL(this.doc, editor.hl(), spans)))
-                )
-            );
+                            children: buildParagraphs(
+                                this.doc, editor.hl(), spans)))));
           }
           return Container();
         });
@@ -480,19 +479,20 @@ class _Editor extends State<Editor> {
   }
 
   void _onKeyInputSequence(String text) {
+    AppModel app = Provider.of<AppModel>(context, listen: false);
     EditorModel editor = Provider.of<EditorModel>(context, listen: false);
-    switch(text) {
+    switch (text) {
       case 'ctrl+1':
-        editor.setColorByIndex(int.parse(text.split('+')[1])-1);
+        editor.setColorByIndex(int.parse(text.split('+')[1]) - 1);
         break;
       case 'ctrl+2':
-        editor.setColorByIndex(int.parse(text.split('+')[1])-1);
+        editor.setColorByIndex(int.parse(text.split('+')[1]) - 1);
         break;
       case 'ctrl+3':
-        editor.setColorByIndex(int.parse(text.split('+')[1])-1);
+        editor.setColorByIndex(int.parse(text.split('+')[1]) - 1);
         break;
       case 'ctrl+4':
-        editor.setColorByIndex(int.parse(text.split('+')[1])-1);
+        editor.setColorByIndex(int.parse(text.split('+')[1]) - 1);
         break;
       case 'ctrl+x':
         editor.deleteHighlight(editor.currentHighlight());
@@ -500,8 +500,111 @@ class _Editor extends State<Editor> {
       case 'ctrl+h':
         editor.toggleHighlight();
         break;
+      case 'alt+=':
+        app.textScale += 0.2;
+        if (app.textScale > 1.8) {
+          app.textScale = 1.8;
+        }
+        app.notifyListeners();
+        break;
+      case 'alt+-':
+        app.textScale -= 0.2;
+        if (app.textScale < 0.6) {
+          app.textScale = 0.6;
+        }
+        app.notifyListeners();
+        break;
     }
-    // print(text);
+    print(text);
+  }
+
+  void findSupPair(int index) {}
+
+  List<InlineSpan> buildParagraphs(
+      AnnotateDoc? doc, List<HL> hl, List<HtmlSpan> spans) {
+    AppModel app = Provider.of<AppModel>(context, listen: false);
+
+    List<InlineSpan> spns = <InlineSpan>[];
+    List<HtmlSpan> hld = <HtmlSpan>[];
+    int start = -1;
+    int end = 0;
+    spans.forEach((s) {
+      var elm = doc?.elms[s.index];
+      if (start == -1) start = s.index;
+      end = s.index;
+      String text = '';
+      if (elm is Node) {
+        text = '${(elm as Node).text}';
+      }
+      s.text = text;
+      if (s.text.length == 0) return;
+
+      for (int i = 0; i < text.length; i++) {
+        HtmlSpan ss = HtmlSpan(
+          index: s.index,
+          pos: i,
+          length: 1,
+          bold: s.bold,
+          italic: s.italic,
+          underline: s.underline,
+          sup: s.sup,
+        );
+        ss.text = text.substring(ss.pos, ss.pos + ss.length);
+        ss.background = Color.fromRGBO(0, 0, 0, 0);
+
+        if (doc != null) {
+          hl.forEach((hl) {
+            bool highlight = false;
+            if (ss.index >= hl.start.dx && ss.index <= hl.end.dx) {
+              highlight = true;
+            }
+            if (highlight) {
+              if (ss.index == hl.start.dx && ss.pos < hl.start.dy) {
+                highlight = false;
+              }
+            }
+            if (highlight) {
+              if (ss.index == hl.end.dx && ss.pos > hl.end.dy) {
+                highlight = false;
+              }
+            }
+            if (highlight) {
+              ss.background = hl.color;
+            }
+          });
+        }
+
+        if (hld.length > 0) {
+          if (hld[hld.length - 1].isEqual(ss)) {
+            hld[hld.length - 1].length++;
+            hld[hld.length - 1].text = text.substring(hld[hld.length - 1].pos,
+                hld[hld.length - 1].pos + hld[hld.length - 1].length);
+            continue;
+          }
+        }
+
+        hld.add(ss);
+      }
+    });
+
+    if (debugParagraphs) {
+      spns.add(TextSpanWrapper(
+          text: '${start}-${end}', style: TextStyle(color: Colors.red)));
+    }
+
+    hld.forEach((s) {
+      s.fontFamily = app.fontFamily;
+      s.fontSize *= app.textScale;
+      GestureRecognizer? recognizer;
+      if (s.sup) {
+        recognizer = TapGestureRecognizer()
+          ..onTap = () {
+            findSupPair(s.index);
+          };
+      }
+      spns.add(s.toTextSpan(doc, s.text, recognizer: recognizer));
+    });
+    return spns;
   }
 
   @override
@@ -509,14 +612,14 @@ class _Editor extends State<Editor> {
     final screenWidth = MediaQuery.of(context).size.width;
     List<Widget> children = [buildTextList(context), ...tools()];
     return KeyInputListener(
-                focusNode: focusNode,
-                // onKeyInputText: _onKeyInputText,
-                onKeyInputSequence: _onKeyInputSequence,
-                onKeyInputMods: _onKeyInputMods,
-                child: TouchInputListener(
-                    onTapDown: _onTapDown,
-                    onDragStart: _onDragStart,
-                    onDragUpdate: _onDragUpdate,
-                    child: Stack(children: children)));
+        focusNode: focusNode,
+        // onKeyInputText: _onKeyInputText,
+        onKeyInputSequence: _onKeyInputSequence,
+        onKeyInputMods: _onKeyInputMods,
+        child: TouchInputListener(
+            onTapDown: _onTapDown,
+            onDragStart: _onDragStart,
+            onDragUpdate: _onDragUpdate,
+            child: Stack(children: children)));
   }
 }

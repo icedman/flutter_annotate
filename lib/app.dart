@@ -16,34 +16,31 @@ import 'annotate.dart';
 import 'providers.dart';
 import 'editor.dart';
 
-class App extends StatelessWidget
-{
-    @override
-    Widget build(BuildContext context)
-    {
-        AppModel app = Provider.of<AppModel>(context);
+class App extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    AppModel app = Provider.of<AppModel>(context);
 
-        ThemeData themeData = ThemeData(
+    ThemeData themeData = ThemeData(
         fontFamily: app.fontFamily,
         brightness: Brightness.light,
         primarySwatch: Colors.grey,
         primaryColor: app.foreground,
         backgroundColor: app.background,
-        scaffoldBackgroundColor: Colors.white
-        );
+        scaffoldBackgroundColor: Colors.white);
 
     return MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: themeData,
         initialRoute: '/',
         routes: {
-        '/': (context) => DefaultTabController(
-            length: app.docs.length, child: CasesView())
+          '/': (context) =>
+              DefaultTabController(length: app.docs.length, child: CasesView())
         }
         // home: DefaultTabController(
         //     length: app.docs.length, child: CasesView())
         );
-    }
+  }
 }
 
 class CasesView extends StatelessWidget {
@@ -52,16 +49,13 @@ class CasesView extends StatelessWidget {
     List<Widget> tabs = <Widget>[];
     AppModel app = Provider.of<AppModel>(context);
     app.docs.forEach((doc) {
-        tabs.add(Tab(child: MultiProvider(
-          providers: [
-              ChangeNotifierProvider(create: (context) => EditorModel(doc: doc))
-          ],
-          child: Editor(doc: doc)
-        )));
+      tabs.add(Tab(
+          child: MultiProvider(providers: [
+        ChangeNotifierProvider(create: (context) => EditorModel(doc: doc))
+      ], child: Editor(doc: doc))));
     });
     return Scaffold(
         // appBar: AppBar(),
-        body: TabBarView(children: tabs)
-        );
+        body: TabBarView(children: tabs));
   }
 }

@@ -13,81 +13,6 @@ const bool debugParagraphs = false;
 const String defaultFamily = 'Times';
 const double defaultSize = 24;
 
-List<InlineSpan> injectHL(AnnotateDoc? doc, List<HL> hl, List<HtmlSpan> spans) {
-  List<InlineSpan> spns = <InlineSpan>[];
-  List<HtmlSpan> hld = <HtmlSpan>[];
-  int start = -1;
-  int end = 0;
-  spans.forEach((s) {
-    var elm = doc?.elms[s.index];
-    if (start == -1) start = s.index;
-    end = s.index;
-    String text = '';
-    if (elm is Node) {
-      text = '${(elm as Node).text}';
-    }
-    s.text = text;
-    if (s.text.length == 0) return;
-
-    for (int i = 0; i < text.length; i++) {
-      HtmlSpan ss = HtmlSpan(
-        index: s.index,
-        pos: i,
-        length: 1,
-        bold: s.bold,
-        italic: s.italic,
-        underline: s.underline,
-        sup: s.sup,
-      );
-      ss.text = text.substring(ss.pos, ss.pos + ss.length);
-      ss.background = Color.fromRGBO(0, 0, 0, 0);
-
-      if (doc != null) {
-        hl.forEach((hl) {
-          bool highlight = false;
-          if (ss.index >= hl.start.dx && ss.index <= hl.end.dx) {
-            highlight = true;
-          }
-          if (highlight) {
-            if (ss.index == hl.start.dx && ss.pos < hl.start.dy) {
-              highlight = false;
-            }
-          }
-          if (highlight) {
-            if (ss.index == hl.end.dx && ss.pos > hl.end.dy) {
-              highlight = false;
-            }
-          }
-          if (highlight) {
-            ss.background = hl.color;
-          }
-        });
-      }
-
-      if (hld.length > 0) {
-        if (hld[hld.length - 1].isEqual(ss)) {
-          hld[hld.length - 1].length++;
-          hld[hld.length - 1].text = text.substring(hld[hld.length - 1].pos,
-              hld[hld.length - 1].pos + hld[hld.length - 1].length);
-          continue;
-        }
-      }
-
-      hld.add(ss);
-    }
-  });
-
-  if (debugParagraphs) {
-    spns.add(TextSpanWrapper(
-        text: '${start}-${end}', style: TextStyle(color: Colors.red)));
-  }
-
-  hld.forEach((s) {
-    spns.add(s.toTextSpan(doc, s.text));
-  });
-  return spns;
-}
-
 Offset getExtents(style) {
   final TextPainter textPainter = TextPainter(
       text: TextSpan(text: "?", style: style),
@@ -100,12 +25,12 @@ Offset getExtents(style) {
 }
 
 class HL {
-  HL(
-      {Offset this.start = const Offset(-1, -1),
-      Offset this.end = const Offset(-1, -1),
-      Color this.color = Colors.red,
-      int this.colorIndex = 0,
-      });
+  HL({
+    Offset this.start = const Offset(-1, -1),
+    Offset this.end = const Offset(-1, -1),
+    Color this.color = Colors.red,
+    int this.colorIndex = 0,
+  });
 
   Offset start = Offset(-1, -1);
   Offset end = Offset(-1, -1);
@@ -122,6 +47,7 @@ class HtmlSpan {
     bool this.italic = false,
     bool this.underline = false,
     bool this.sup = false,
+    String this.fontFamily = defaultFamily,
     double this.fontSize = defaultSize,
     Color this.color = Colors.black,
     Color this.background = Colors.white,
@@ -135,6 +61,7 @@ class HtmlSpan {
   bool italic = false;
   bool underline = false;
   bool sup = false;
+  String fontFamily = defaultFamily;
   double fontSize = 0;
   Color color = Colors.black;
   Color background = Colors.white;
@@ -151,7 +78,8 @@ class HtmlSpan {
         background == s.background;
   }
 
-  TextSpanWrapper toTextSpan(AnnotateDoc? doc, String text) {
+  TextSpanWrapper toTextSpan(AnnotateDoc? doc, String text,
+      {GestureRecognizer? recognizer}) {
     if (doc == null) {
       return TextSpanWrapper(text: text);
     }
@@ -166,7 +94,7 @@ class HtmlSpan {
 
     TextStyle style = TextStyle(
       color: Colors.black,
-      fontFamily: defaultFamily,
+      fontFamily: fontFamily,
       fontSize: sup ? fontSize * 0.75 : fontSize,
       fontWeight: bold ? FontWeight.bold : FontWeight.normal,
       fontStyle: italic ? FontStyle.italic : FontStyle.normal,
@@ -184,6 +112,7 @@ class HtmlSpan {
     return TextSpanWrapper(
         text: text,
         mouseCursor: sup ? MaterialStateMouseCursor.clickable : null,
+        recognizer: recognizer,
         style: style,
         index: index,
         pos: pos,
@@ -244,8 +173,7 @@ class AnnotateDoc {
   var elms = <Object>[];
   var breaks = <int>[];
 
-  Future<bool> load(String path) async
-  {
+  Future<bool> load(String path) async {
     File file = File(path);
     String contents = await file.readAsString();
     var document = parse(contents);

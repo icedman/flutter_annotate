@@ -19,8 +19,7 @@ class DocTool extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     EditorModel editor = Provider.of<EditorModel>(context);
-    double opacity =
-        !editor.enableDocTool ? 0 : 1;
+    double opacity = !editor.enableDocTool ? 0 : 1;
 
     return Positioned(
         right: 20,
@@ -46,8 +45,7 @@ class DocTool extends StatelessWidget {
                         child: Padding(
                             padding: EdgeInsets.all(iconPadding),
                             child: Icon(Icons.more,
-                                color: Colors.white,
-                                size: iconSize)))
+                                color: Colors.white, size: iconSize)))
                   ]))),
             )));
   }
@@ -62,19 +60,18 @@ class AnnotateTool extends StatelessWidget {
 
     final target = editor.currentHighlight();
 
-    List<Widget> colorIcons = [0,1,2,3]
-        .map((c) { return GestureDetector(
-                onTap: () {
-                  editor.selectTag = false;
-                  editor.setColorByIndex(c);
-                },
-                child: Padding(
-                    padding: EdgeInsets.all(iconPadding),
-                    child: Icon(Icons.sell, color: editor.colors[c], size: iconSize)
-                ));
-            }
-        )
-        .toList();
+    List<Widget> colorIcons =
+        List<int>.generate(editor.colors.length, (i) => i).map((c) {
+      return GestureDetector(
+          onTap: () {
+            editor.selectTag = false;
+            editor.setColorByIndex(c);
+          },
+          child: Padding(
+              padding: EdgeInsets.all(iconPadding),
+              child:
+                  Icon(Icons.sell, color: editor.colors[c], size: iconSize)));
+    }).toList();
 
     List<Widget> moreIcons = <Widget>[];
     if (editor.currentHighlight() != -1 &&
@@ -115,7 +112,9 @@ class AnnotateTool extends StatelessWidget {
                         child: Padding(
                             padding: EdgeInsets.all(iconPadding),
                             child: Icon(Icons.border_color,
-                                color: Colors.white,
+                                color: editor.enableHighlight
+                                    ? editor.currentColor()
+                                    : Colors.white,
                                 size: iconSize))),
                     ...colorIcons,
                     ...moreIcons,

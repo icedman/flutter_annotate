@@ -22,9 +22,6 @@ void main(List<String> args) async {
   await app.configure(args);
 
   runApp(MultiProvider(
-      providers: [
-      ChangeNotifierProvider(create: (context) => app)
-      ],
-      child: App()
-      ));
+      providers: [ChangeNotifierProvider(create: (context) => app)],
+      child: App()));
 }

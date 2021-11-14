@@ -30,14 +30,13 @@ class EditorModel extends ChangeNotifier {
     Colors.purple
   ];
 
-  Color colorCombine(Color a, Color b)
-  {
-      return Color.fromRGBO(
-          (a.red + b.red)>>1,
-          (a.green + b.green)>>1,
-          (a.blue + b.blue)>>1,
-          1
-          );
+  void customizeColors(List<Color> colors) {
+    this.colors = colors;
+  }
+
+  Color colorCombine(Color a, Color b) {
+    return Color.fromRGBO((a.red + b.red) >> 1, (a.green + b.green) >> 1,
+        (a.blue + b.blue) >> 1, 1);
   }
 
   Color currentColor() {
@@ -64,9 +63,11 @@ class EditorModel extends ChangeNotifier {
   }
 
   void deleteHighlight(int index) {
-    _hl.removeAt(index);
-    _highlightIndex = -1;
-    notifyListeners();
+    if (index != -1 && index < _hl.length) {
+      _hl.removeAt(index);
+      _highlightIndex = -1;
+      notifyListeners();
+    }
   }
 
   int count() {
@@ -122,6 +123,9 @@ class EditorModel extends ChangeNotifier {
   }
 
   void setColorByIndex(int index) {
+    if (index >= colors.length) {
+      return;
+    }
     print(index);
     Color color = colorCombine(Colors.white, colors[index]);
     this._color = color;
@@ -130,6 +134,8 @@ class EditorModel extends ChangeNotifier {
       addHighlight();
     } else if (currentHighlight() != -1 && currentHighlight() < _hl.length) {
       _hl[currentHighlight()].color = color;
+      _hl[currentHighlight()].colorIndex = index;
+      _highlightIndex = -1;
     }
     notifyListeners();
   }
@@ -150,10 +156,10 @@ class EditorModel extends ChangeNotifier {
 
     if (_highlightIndex != -1 && _highlightIndex < _hl.length) {
       res[_highlightIndex] = HL()
-      ..start = res[_highlightIndex].start
-      ..end = res[_highlightIndex].end
-      ..color = colors[res[_highlightIndex].colorIndex]
-      ..colorIndex = res[_highlightIndex].colorIndex;
+        ..start = res[_highlightIndex].start
+        ..end = res[_highlightIndex].end
+        ..color = colors[res[_highlightIndex].colorIndex]
+        ..colorIndex = res[_highlightIndex].colorIndex;
     }
 
     return res;
@@ -178,8 +184,8 @@ class AppModel extends ChangeNotifier {
 
   // theme
   String themePath = '';
-  String fontFamily = 'FiraCode';
-  double fontSize = 18;
+  String fontFamily = 'Times';
+  double textScale = 1.2;
 
   Color foreground = Colors.white;
   Color background = Colors.grey;
@@ -198,8 +204,7 @@ class AppModel extends ChangeNotifier {
     loadTheme();
   }
 
-  void loadTheme() {
-  }
+  void loadTheme() {}
 
   Future<void> setupResources() async {
     // if (permissionStatus != PermissionStatus.granted) return;
@@ -271,8 +276,8 @@ class AppModel extends ChangeNotifier {
     //   notifyListeners();
     // } else {
     //   print('permission may have been granted already');
-      resourcesReady = true;
-      permissionStatus = PermissionStatus.granted;
+    resourcesReady = true;
+    permissionStatus = PermissionStatus.granted;
     // }
 
     // if (args.length > 0) {
@@ -292,7 +297,7 @@ class AppModel extends ChangeNotifier {
     AnnotateDoc doc = AnnotateDoc();
     await doc.load(path);
     docs.add(doc);
-    
+
     loadAppConfig();
     notifyListeners();
     return 0;
@@ -302,6 +307,5 @@ class AppModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void loadAppConfig() {
-  }
+  void loadAppConfig() {}
 }
