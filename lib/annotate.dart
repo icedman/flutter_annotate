@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +8,11 @@ import 'package:flutter/rendering.dart';
 import 'package:html/parser.dart' show parse;
 import 'package:html/dom.dart' show Node;
 import 'package:html/dom_parsing.dart' show TreeVisitor;
+import 'package:http/http.dart' as http;
+
+import 'cache.dart';
+import 'xpath.dart';
+import 'util.dart';
 
 const bool debugParagraphs = false;
 // const String defaultFamily = 'FiraCode';
@@ -40,6 +46,7 @@ class HL {
 
 class HtmlSpan {
   HtmlSpan({
+    int this.line = 0,
     int this.index = 0,
     int this.pos = 0,
     int this.length = 0,
@@ -53,6 +60,7 @@ class HtmlSpan {
     Color this.background = Colors.white,
   });
 
+  int line = 0;
   int index = 0;
   int pos = 0;
   int length = 0;
@@ -114,6 +122,7 @@ class HtmlSpan {
         mouseCursor: sup ? MaterialStateMouseCursor.clickable : null,
         recognizer: recognizer,
         style: style,
+        line: line,
         index: index,
         pos: pos,
         length: length,
@@ -123,6 +132,7 @@ class HtmlSpan {
 }
 
 class TextSpanWrapper extends TextSpan {
+  int line = 0;
   int index = 0;
   int pos = 0;
   int length = 0;
@@ -140,6 +150,7 @@ class TextSpanWrapper extends TextSpan {
       String? semanticsLabel,
       Locale? locale,
       bool? spellOut,
+      int this.line = 0,
       int this.index = 0,
       int this.pos = 0,
       int this.length = 0,
@@ -172,16 +183,101 @@ class AnnotateDoc {
   var document;
   var elms = <Object>[];
   var breaks = <int>[];
+  var hl = <HL>[];
 
-  Future<bool> load(String path) async {
-    File file = File(path);
-    String contents = await file.readAsString();
+  List<Color> colors = <Color>[
+    Colors.yellow,
+    Colors.green,
+    Colors.blue,
+    Colors.purple
+  ];
+
+  static Future<AnnotateDoc?> loadContent(String contents) async {
+    AnnotateDoc? doc = AnnotateDoc();
     var document = parse(contents);
     var tree = AnnotateTreeVisitor();
-    tree.doc = this;
+    tree.doc = doc;
     tree.visit(document);
-    this.document = document;
+    if (doc != null) {
+      doc.document = document;
+    }
+    return doc;
+  }
+
+  static Future<AnnotateDoc?> loadFile(String path) async {
+    print('loading file: ${path}');
+    File file = File(path);
+    String contents = await file.readAsString();
+    return loadContent(contents);
+  }
+
+  static Future<AnnotateDoc?> loadHttp(String path) async {
+    print('loading http: ${path}');
+    try {
+      var content = await cachedHttpFetch(path, path);
+      if (content == null) return null;
+      final parsed = jsonDecode(content);
+      return loadContent('<article>${parsed['content']}</article>');
+    } catch (err, msg) {
+      return null;
+    }
+    return null;
+  }
+
+  Future<bool> loadAnnotations(String content) async {
+    final parsed = jsonDecode(content);
+    if (!parsed.containsKey('rows')) {
+      return false;
+    }
+    parsed['rows'].forEach((row) {
+      if (row.containsKey('ranges')) {
+        var range = row['ranges'][0];
+        Offset start =
+            XPath.findPath(this, range['start'], offset: range['startOffset']);
+        Offset end =
+            XPath.findPath(this, range['end'], offset: range['endOffset']);
+
+        int index = 0;
+        if (row['tags'].contains('issues')) {
+          index = 1;
+        }
+        if (row['tags'].contains('ruling')) {
+          index = 2;
+        }
+        if (row['tags'].contains('principles')) {
+          index = 3;
+        }
+
+        HL _hl = HL()
+          ..start = start
+          ..end = end
+          ..color = colorCombine(Colors.white, colors[index])
+          ..colorIndex = index;
+        hl.add(_hl);
+      }
+    });
+
     return true;
+  }
+
+  Future<bool> loadAnnotationFile(String path) async {
+    print('loading file: ${path}');
+    File file = File(path);
+    String contents = await file.readAsString();
+    return loadAnnotations(contents);
+  }
+
+  Future<bool> loadAnnotationHttp(String path) async {
+    print('loading http: ${path}');
+    try {
+      var content = await cachedHttpFetch(path, path);
+      if (content == null) return false;
+      final parsed = jsonDecode(content);
+      return await loadAnnotations(parsed['content']);
+    } catch (err, msg) {
+      return false;
+    }
+    return false;
   }
 
   bool isWithinMarkup(List<String> markers, int index, {int end = 0}) {

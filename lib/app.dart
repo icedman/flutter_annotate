@@ -11,10 +11,11 @@ import 'package:html/dom_parsing.dart' show TreeVisitor;
 
 import 'keys.dart';
 import 'touches.dart';
-import 'palette.dart';
 import 'annotate.dart';
 import 'providers.dart';
 import 'editor.dart';
+import 'cases.dart';
+import 'util.dart';
 
 class App extends StatelessWidget {
   @override
@@ -22,40 +23,26 @@ class App extends StatelessWidget {
     AppModel app = Provider.of<AppModel>(context);
 
     ThemeData themeData = ThemeData(
-        fontFamily: app.fontFamily,
+        // fontFamily: app.fontFamily,
         brightness: Brightness.light,
-        primarySwatch: Colors.grey,
+        primarySwatch: Colors.green,
         primaryColor: app.foreground,
         backgroundColor: app.background,
+        textSelectionTheme: TextSelectionThemeData(
+          selectionColor: Color(0xc0c0c0).withOpacity(.5),
+          cursorColor: Color(0xffffff).withOpacity(.6),
+          selectionHandleColor: Color(0xc0c0c0).withOpacity(1),
+        ),
         scaffoldBackgroundColor: Colors.white);
 
     return MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: themeData,
-        initialRoute: '/',
+        initialRoute: '/juris/search',
         routes: {
           '/': (context) =>
-              DefaultTabController(length: app.docs.length, child: CasesView())
-        }
-        // home: DefaultTabController(
-        //     length: app.docs.length, child: CasesView())
-        );
-  }
-}
-
-class CasesView extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    List<Widget> tabs = <Widget>[];
-    AppModel app = Provider.of<AppModel>(context);
-    app.docs.forEach((doc) {
-      tabs.add(Tab(
-          child: MultiProvider(providers: [
-        ChangeNotifierProvider(create: (context) => EditorModel(doc: doc))
-      ], child: Editor(doc: doc))));
-    });
-    return Scaffold(
-        // appBar: AppBar(),
-        body: TabBarView(children: tabs));
+              DefaultTabController(length: app.docs.length, child: CaseView()),
+          '/juris/search': (context) => CaseSearchView()
+        });
   }
 }

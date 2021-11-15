@@ -11,9 +11,10 @@ import 'package:html/dom_parsing.dart' show TreeVisitor;
 
 import 'keys.dart';
 import 'touches.dart';
-import 'palette.dart';
+import 'tools.dart';
 import 'annotate.dart';
 import 'providers.dart';
+import 'scrollto.dart';
 
 const double paragraphSpacing = 24;
 
@@ -35,8 +36,11 @@ class _Editor extends State<Editor> {
   bool shifting = false;
   bool ctrling = false;
   bool pulse = false;
+  int editorFirstLine = 0;
+  int editorLastLine = 0;
 
   final _scroller = ScrollController();
+  final ScrollTo scrollToController = ScrollTo();
   late FocusNode focusNode;
 
   @override
@@ -53,6 +57,93 @@ class _Editor extends State<Editor> {
 
   List<Widget> tools() {
     return [AnnotateTool(), DocTool()];
+  }
+
+  List<int> getVisibleLines() {
+    RenderObject? obj = context.findRenderObject();
+    if (this.doc == null || obj == null) return [-1, -1];
+    RenderBox? box = obj as RenderBox;
+    Offset pos = box.localToGlobal(Offset(0, 0));
+
+    List<RenderParagraph> pars = <RenderParagraph>[];
+    _findRenderParagraphs(obj, pars);
+
+    // print('------------');
+    // print(pos);
+
+    TextSpanWrapper? target;
+    RenderParagraph? targetPar;
+    int targetOffset = 0;
+
+    const double adjustX = 2;
+    const double adjustY = 1;
+
+    int start = -1;
+    int end = -1;
+
+    // find paragraph
+    for (final p in pars) {
+      if (target != null) {
+        break;
+      }
+
+      RenderBox? pbox = p as RenderBox;
+      Offset pPos = pbox.localToGlobal(Offset(0, 0));
+      TextSpan _t = p.text as TextSpan;
+      Rect bounds = Offset(0, 0) & p.size;
+
+      if (pPos.dy + p.size.height < pos.dy) continue;
+      if (pPos.dy > pos.dy + box.size.height) continue;
+
+      List<InlineSpan>? _c = _t.children;
+      for (final c in _c ?? []) {
+        if (!(c is TextSpanWrapper)) continue;
+        TextSpanWrapper tsw = c as TextSpanWrapper;
+        if (start == -1) {
+          start = tsw.line;
+        }
+        end = tsw.line;
+      }
+    }
+
+    editorFirstLine = start;
+    editorLastLine = end;
+    return [start, end];
+  }
+
+  bool isLineVisible(int line) {
+    getVisibleLines();
+    return line >= editorFirstLine && line <= editorLastLine;
+  }
+
+  void scrollToLine(int line) {
+    if (line < 0) line = 0;
+    bool visible = isLineVisible(line);
+    if (visible) {
+      // print('block is visible');
+      scrollToController.cancel();
+    } else {
+      int h = (editorLastLine - editorFirstLine);
+      // print('scroll');
+      int l = doc?.breaks.length ?? 0;
+      double p = line.toDouble() / (l + 1);
+      double target = (_scroller.position.maxScrollExtent + 1000) * p;
+      double dir = (line - h / 2 < editorFirstLine) ? -10 : 10;
+
+      target += (200 * dir);
+      // print('${target} ${l}');
+
+      scrollToController.speedScale = 0.02;
+      scrollToController.onUpdate = (() {
+        // end scroller when line becomes visible
+        return !isLineVisible(line);
+      });
+
+      scrollToController.start(dir,
+          scrollController: _scroller, target: target, loops: 200);
+    }
+
+    // print('$line $editorFirstLine, $editorLastLine');
   }
 
   void _findPositioned(RenderObject? obj, List<RenderPositionedBox> res) {
@@ -313,7 +404,7 @@ class _Editor extends State<Editor> {
     _updateLastSelection(start, end);
   }
 
-  Widget buildTable(BuildContext context, int start, int end) {
+  Widget buildTable(BuildContext context, int line, int start, int end) {
     EditorModel editor = Provider.of<EditorModel>(context);
     List<Widget> rows = <Widget>[];
     List<Widget> cells = <Widget>[];
@@ -345,6 +436,7 @@ class _Editor extends State<Editor> {
         }
         if (elm is Node) {
           HtmlSpan span = HtmlSpan(
+            line: line,
             index: i,
             pos: 0,
             length: 0,
@@ -430,7 +522,7 @@ class _Editor extends State<Editor> {
               if (!table) {
                 table = this.doc?.isTable(i, end: end) ?? true;
                 if (table) {
-                  return buildTable(context, start, end);
+                  return buildTable(context, index, start, end);
                 }
               }
 
@@ -438,6 +530,7 @@ class _Editor extends State<Editor> {
               if (elm != null) {
                 if (elm is Node) {
                   HtmlSpan span = HtmlSpan(
+                    line: index,
                     index: i,
                     pos: 0,
                     length: 0,
@@ -509,8 +602,8 @@ class _Editor extends State<Editor> {
         break;
       case 'alt+-':
         app.textScale -= 0.2;
-        if (app.textScale < 0.6) {
-          app.textScale = 0.6;
+        if (app.textScale < 0.8) {
+          app.textScale = 0.8;
         }
         app.notifyListeners();
         break;
@@ -518,7 +611,48 @@ class _Editor extends State<Editor> {
     print(text);
   }
 
-  void findSupPair(int index) {}
+  void scrollToSupPair(int index) {
+    var elm = doc?.elms[index];
+    if (!(elm is Node)) return;
+
+    String sub = '${(elm as Node).text}';
+    int start = -1;
+    int end = -1;
+    int l = doc?.elms.length ?? 0;
+    for (int i = 0; i < l; i++) {
+      elm = doc?.elms[i];
+      if (!(elm is Node)) continue;
+      String sub2 = '${(elm as Node).text}';
+      if (sub == sub2) {
+        if (start == -1) {
+          start = i;
+        } else {
+          end = i;
+        }
+      }
+      if (start > 0 && end > 0) {
+        break;
+      }
+    }
+
+    int overshoot = -4;
+    int scrollTo = start;
+    if (index == start) {
+      scrollTo = end;
+      overshoot = 4;
+    }
+
+    int idx = 0;
+    for (final b in doc?.breaks ?? []) {
+      if (b > scrollTo) {
+        break;
+      }
+      idx++;
+    }
+
+    scrollToLine(idx);
+    // print('${idx} ${start} ${end}');
+  }
 
   List<InlineSpan> buildParagraphs(
       AnnotateDoc? doc, List<HL> hl, List<HtmlSpan> spans) {
@@ -541,6 +675,7 @@ class _Editor extends State<Editor> {
 
       for (int i = 0; i < text.length; i++) {
         HtmlSpan ss = HtmlSpan(
+          line: s.line,
           index: s.index,
           pos: i,
           length: 1,
@@ -599,7 +734,7 @@ class _Editor extends State<Editor> {
       if (s.sup) {
         recognizer = TapGestureRecognizer()
           ..onTap = () {
-            findSupPair(s.index);
+            scrollToSupPair(s.index);
           };
       }
       spns.add(s.toTextSpan(doc, s.text, recognizer: recognizer));

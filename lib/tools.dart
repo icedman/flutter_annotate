@@ -55,8 +55,11 @@ class AnnotateTool extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     EditorModel editor = Provider.of<EditorModel>(context);
-    double opacity =
-        (!editor.hasSelection() && editor.currentHighlight() == -1) ? 0 : 1;
+    double opacity = (!editor.enableHighlight &&
+            !editor.hasSelection() &&
+            editor.currentHighlight() == -1)
+        ? 0
+        : 1;
 
     final target = editor.currentHighlight();
 

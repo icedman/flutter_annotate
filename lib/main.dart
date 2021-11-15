@@ -15,13 +15,22 @@ import 'providers.dart';
 import 'touches.dart';
 import 'annotate.dart';
 import 'editor.dart';
+import 'cases.dart';
 import 'xpath.dart';
+import 'cache.dart';
 
 void main(List<String> args) async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  HttpOverrides.global = MyHttpOverrides();
+  initDB();
+  await openDB();
+
   AppModel app = AppModel();
   await app.configure(args);
 
-  runApp(MultiProvider(
-      providers: [ChangeNotifierProvider(create: (context) => app)],
-      child: App()));
+  runApp(MultiProvider(providers: [
+    ChangeNotifierProvider(create: (context) => app),
+    ChangeNotifierProvider(create: (context) => CaseSearchModel())
+  ], child: App()));
 }

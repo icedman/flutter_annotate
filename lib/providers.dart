@@ -1,17 +1,37 @@
 import 'dart:ffi';
 import 'dart:async';
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:http/http.dart';
+import 'package:path/path.dart' show join;
 
 import 'editor.dart';
 import 'annotate.dart';
+import 'cache.dart';
+import 'util.dart';
 
 const String appResourceRoot = '~/.lawyerly';
 const Color selectionColor = Color.fromRGBO(0xc0, 0xc0, 0xc0, 1);
 
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback =
+          (X509Certificate cert, String host, int port) => true;
+  }
+}
+
 class EditorModel extends ChangeNotifier {
-  EditorModel({AnnotateDoc? this.doc = null});
+  EditorModel({AnnotateDoc? this.doc = null}) {
+    if (this.doc != null) {
+      this.colors = this.doc?.colors ?? [];
+    }
+  }
+
   AnnotateDoc? doc;
 
   bool enableDocTool = true;
@@ -19,7 +39,6 @@ class EditorModel extends ChangeNotifier {
   int _highlightIndex = -1;
   Color _color = Colors.black;
   int _colorIndex = 0;
-  List<HL> _hl = <HL>[];
   HL selection = HL();
   bool selectTag = false;
 
@@ -29,15 +48,6 @@ class EditorModel extends ChangeNotifier {
     Colors.blue,
     Colors.purple
   ];
-
-  void customizeColors(List<Color> colors) {
-    this.colors = colors;
-  }
-
-  Color colorCombine(Color a, Color b) {
-    return Color.fromRGBO((a.red + b.red) >> 1, (a.green + b.green) >> 1,
-        (a.blue + b.blue) >> 1, 1);
-  }
 
   Color currentColor() {
     if (_color == Colors.black) {
@@ -49,11 +59,11 @@ class EditorModel extends ChangeNotifier {
   void addHighlight() {
     selection.color = currentColor();
     selection.colorIndex = _colorIndex;
-    _hl.add(selection);
-    selectHighlight(_hl.length - 1);
+    doc?.hl.add(selection);
+    selectHighlight(count() - 1);
     selection = HL();
     notifyListeners();
-    // print(_hl.length);
+    // print(doc?.hl.length);
   }
 
   void selectHighlight(int index) {
@@ -63,15 +73,15 @@ class EditorModel extends ChangeNotifier {
   }
 
   void deleteHighlight(int index) {
-    if (index != -1 && index < _hl.length) {
-      _hl.removeAt(index);
+    if (index != -1 && index < count()) {
+      doc?.hl.removeAt(index);
       _highlightIndex = -1;
       notifyListeners();
     }
   }
 
   int count() {
-    return _hl.length;
+    return doc?.hl.length ?? 0;
   }
 
   int currentHighlight() {
@@ -114,9 +124,9 @@ class EditorModel extends ChangeNotifier {
     selection.start = start;
     selection.end = end;
     if (enableHighlight) {
-      if (_hl.length > 0) {
-        _hl[_hl.length - 1].start = start;
-        _hl[_hl.length - 1].end = end;
+      if (count() > 0) {
+        doc?.hl[count() - 1].start = start;
+        doc?.hl[count() - 1].end = end;
       }
     }
     notifyListeners();
@@ -132,9 +142,9 @@ class EditorModel extends ChangeNotifier {
     this._colorIndex = index;
     if (hasSelection()) {
       addHighlight();
-    } else if (currentHighlight() != -1 && currentHighlight() < _hl.length) {
-      _hl[currentHighlight()].color = color;
-      _hl[currentHighlight()].colorIndex = index;
+    } else if (currentHighlight() != -1 && currentHighlight() < count()) {
+      doc?.hl[currentHighlight()].color = color;
+      doc?.hl[currentHighlight()].colorIndex = index;
       _highlightIndex = -1;
     }
     notifyListeners();
@@ -148,13 +158,13 @@ class EditorModel extends ChangeNotifier {
   }
 
   List<HL> hl() {
-    List<HL> res = [..._hl, selection].toList();
+    List<HL> res = [...((doc?.hl ?? []).toList()), selection].toList();
     if (hasSelection()) {
       selection.color = enableHighlight ? currentColor() : selectionColor;
       res.add(selection);
     }
 
-    if (_highlightIndex != -1 && _highlightIndex < _hl.length) {
+    if (_highlightIndex != -1 && _highlightIndex < count()) {
       res[_highlightIndex] = HL()
         ..start = res[_highlightIndex].start
         ..end = res[_highlightIndex].end
@@ -289,18 +299,36 @@ class AppModel extends ChangeNotifier {
 
     // EditorApi.initialize(appResourceRoot, explorerRoot);
     // loadTheme();
-    await openEditor('./article.html');
+    // await openEditor('./article.html');
+    // await openEditor('./cfc47.json');
+    openEditor('https://lawyerly.ph/api-01/juris/view/cfc47').then((doc) {
+      if (doc != null) {
+        docs.add(doc);
+        notifyListeners();
+
+        doc.loadAnnotationFile('./annotations.json').then((success) {
+          if (success) {
+            // updateHLColors();
+            notifyListeners();
+          }
+        });
+      } else {
+        print('unable to load content');
+        return -1;
+      }
+    });
+
     return true;
   }
 
-  Future<int> openEditor(String path) async {
-    AnnotateDoc doc = AnnotateDoc();
-    await doc.load(path);
-    docs.add(doc);
+  Future<AnnotateDoc?> openEditor(String path) {
+    // check if already opened
 
-    loadAppConfig();
-    notifyListeners();
-    return 0;
+    if (path.contains('.html')) {
+      return AnnotateDoc.loadFile(path);
+    }
+
+    return AnnotateDoc.loadHttp(path);
   }
 
   void closeEditor(int uid) {
@@ -308,4 +336,44 @@ class AppModel extends ChangeNotifier {
   }
 
   void loadAppConfig() {}
+}
+
+class CaseSearchModel extends ChangeNotifier {
+  String query = '';
+  var result;
+  int offset = 0;
+  int limits = 0;
+  int count = 0;
+  bool searching = false;
+
+  void setResult(parsed) {
+    print('??${parsed['count']}');
+    this.result = parsed['result'];
+    this.limits = parsed['limits'];
+    this.offset = parsed['offset'];
+    this.count = parsed['count'];
+    print('count:${this.count} limits:${this.limits} offset:${this.offset}');
+    notifyListeners();
+  }
+
+  void search(String query) {
+    this.query = query;
+    String q = 'https://lawyerly.ph/api-01/juris/search?q=${query}';
+
+    searching = true;
+    cachedHttpFetch(q, q, sessionOnly: false).then((result) {
+      // people vs sanchez
+      if (result != null) {
+        var parsed = jsonDecode(result);
+        if (parsed != null) {
+          setResult(parsed);
+        }
+      }
+      searching = false;
+      notifyListeners();
+    }).catchError((error) {
+      searching = false;
+      notifyListeners();
+    });
+  }
 }
