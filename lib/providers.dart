@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart';
 import 'package:path/path.dart' show join;
 
+import 'constants.dart';
 import 'editor.dart';
 import 'annotate.dart';
 import 'cache.dart';
@@ -332,9 +333,10 @@ class AppModel extends ChangeNotifier {
       }
     }
     // find existing
-    String url = 'https://lawyerly.ph/api-01/juris/view/${caseId}';
+    String url = '${caseViewURL}/${caseId}';
     return openEditor(url).then((doc) {
       if (doc != null) {
+        doc.docType = 0;
         docs.add(doc);
         doc.docId = caseId;
         doc.sourceUrl = url;
@@ -342,7 +344,45 @@ class AppModel extends ChangeNotifier {
 
         // doc.loadAnnotationFile('./annotations.json').then((success) {
         String annotationsUrl =
-            'https://lawyerly.ph/api-01/annotations/search?docid=${caseId}&doctype=case&user=1';
+            '${annotationSearchURL}?docid=${caseId}&doctype=case&user=1';
+        // print(annotationsUrl);
+        doc.loadAnnotationHttp(annotationsUrl).then((success) {
+          if (success) {
+            notifyListeners();
+          }
+        });
+
+        initialTab = docs.length - 1;
+        return docs.length - 1;
+      } else {
+        print('unable to load content');
+        return -1;
+      }
+    });
+
+    // return -1;
+  }
+
+  Future<int> openLaw(String lawId) {
+    for (int i = 0; i < docs.length; i++) {
+      if (docs[i].docId == lawId) {
+        initialTab = i;
+        return Future<int>.value(i);
+      }
+    }
+    // find existing
+    String url = '${lawViewURL}/${lawId}';
+    return openEditor(url).then((doc) {
+      if (doc != null) {
+        doc.docType = 1;
+        docs.add(doc);
+        doc.docId = lawId;
+        doc.sourceUrl = url;
+        notifyListeners();
+
+        // doc.loadAnnotationFile('./annotations.json').then((success) {
+        String annotationsUrl =
+            '${annotationSearchURL}?docid=${lawId}&doctype=law&user=1';
         // print(annotationsUrl);
         doc.loadAnnotationHttp(annotationsUrl).then((success) {
           if (success) {
@@ -376,6 +416,7 @@ class AppModel extends ChangeNotifier {
 }
 
 class SearchModel extends ChangeNotifier {
+  String searchHintText = 'Type query...';
   String query = '';
   var result;
   int offset = 0;
@@ -420,15 +461,23 @@ class SearchModel extends ChangeNotifier {
 }
 
 class CaseSearchModel extends SearchModel {
+  CaseSearchModel() {
+    searchHintText = 'Type case title or docket number...';
+  }
+
   @override
   String buildQuery(String query) {
-    return 'https://lawyerly.ph/api-01/juris/search?q=${query}';
+    return '${caseSearchURL}?q=${query}';
   }
 }
 
 class LawSearchModel extends SearchModel {
+  LawSearchModel() {
+    searchHintText = 'Type law title or reference number...';
+  }
+
   @override
   String buildQuery(String query) {
-    return 'https://lawyerly.ph/api-01/laws/search?q=${query}';
+    return '${lawSearchURL}?q=${query}';
   }
 }

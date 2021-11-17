@@ -41,8 +41,8 @@ class _Editor extends State<Editor> {
 
   final _scroller = ScrollController();
   final ScrollTo scrollToController = ScrollTo();
-  // late FocusNode
-  FocusNode focusNode = FocusNode();
+
+  late FocusNode focusNode;
 
   @override
   void initState() {
@@ -50,6 +50,12 @@ class _Editor extends State<Editor> {
 
     focusNode = FocusNode();
     _scroller.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    focusNode.dispose();
+    super.dispose();
   }
 
   Widget documentHeader() {

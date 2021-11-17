@@ -37,7 +37,8 @@ class LawSearchView extends StatelessWidget {
         title: title,
         searchModel: cases,
         onTapResult: (item) async {
-          app.openCase('${item['caseid']}').then((id) {
+          print(item);
+          app.openLaw('${item['lawid']}').then((id) {
             Navigator.pushNamed(context, '/laws');
           });
         });

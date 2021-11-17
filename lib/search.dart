@@ -59,7 +59,7 @@ class _SearchView extends State<SearchView> {
           },
           showCursor: true,
           decoration: InputDecoration(
-            hintText: 'Type case title or docket ...',
+            hintText: searchModel?.searchHintText ?? 'Type query...',
             hintStyle: TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -162,18 +162,16 @@ class SearchResult extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    CaseSearchModel cases = Provider.of<CaseSearchModel>(context);
-
     int count = 0;
-    if (cases.result != null) {
-      count = cases.result?.length ?? 0;
+    if (searchModel?.result != null) {
+      count = searchModel?.result?.length ?? 0;
     }
 
-    if (cases.searching) {
+    if (searchModel?.searching ?? false) {
       return Padding(padding: EdgeInsets.all(20), child: Text('Searching...'));
     }
 
-    // return Text('${cases.searching?'searching':cases.result}');
+    // return Text('${searchModel?.searching?'searching':searchModel?.result}');
     return ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: count,

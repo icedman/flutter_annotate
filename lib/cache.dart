@@ -91,7 +91,7 @@ Future<String?> cachedHttpFetch(String path, String key,
 
     // return response.body;
   } catch (err, msg) {
-    print(msg);
+    print(err); // snackbar network error!
     return null;
   }
 

@@ -169,6 +169,7 @@ class Marker {
 class AnnotateDoc {
   AnnotateDoc({var this.document = null});
 
+  int docType = 0; // cases = 0; laws = 1
   var document;
   var elms = <Object>[];
   var breaks = <int>[];

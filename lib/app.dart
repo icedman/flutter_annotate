@@ -14,6 +14,7 @@ import 'touches.dart';
 import 'annotate.dart';
 import 'providers.dart';
 import 'editor.dart';
+import 'home.dart';
 import 'cases.dart';
 import 'laws.dart';
 import 'util.dart';
@@ -36,26 +37,27 @@ class App extends StatelessWidget {
         ),
         scaffoldBackgroundColor: Colors.white);
 
-    return MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: themeData,
-        initialRoute: '/laws/search',
-        routes: {
-          '/': (context) => Scaffold(body: Text('hello')),
-          '/juris/search': (context) => MultiProvider(providers: [
-                ChangeNotifierProvider(create: (context) => CaseSearchModel())
-              ], child: CaseSearchView()),
-          '/juris': (context) => DefaultTabController(
-              initialIndex: app.initialTab,
-              length: app.docs.length,
-              child: CaseView()),
-          '/laws/search': (context) => MultiProvider(providers: [
-                ChangeNotifierProvider(create: (context) => LawSearchModel())
-              ], child: LawSearchView()),
-          '/laws': (context) => DefaultTabController(
-              initialIndex: app.initialTab,
-              length: app.docs.length,
-              child: LawView())
-        });
+    return MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (context) => CaseSearchModel()),
+          ChangeNotifierProvider(create: (context) => LawSearchModel())
+        ],
+        child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: themeData,
+            initialRoute: '/',
+            routes: {
+              '/': (context) => Home(),
+              '/juris/search': (context) => CaseSearchView(),
+              '/juris': (context) => DefaultTabController(
+                  initialIndex: app.initialTab,
+                  length: app.docs.length,
+                  child: CaseView()),
+              '/laws/search': (context) => LawSearchView(),
+              '/laws': (context) => DefaultTabController(
+                  initialIndex: app.initialTab,
+                  length: app.docs.length,
+                  child: LawView())
+            }));
   }
 }
