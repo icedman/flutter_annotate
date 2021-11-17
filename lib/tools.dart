@@ -11,45 +11,9 @@ import 'annotate.dart';
 import 'providers.dart';
 
 const double paragraphSpacing = 24;
-const double iconSize = 24;
+const double iconSize = 32;
 const double iconPadding = 8;
 const int animationDuration = 320;
-
-class DocTool extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    EditorModel editor = Provider.of<EditorModel>(context);
-    double opacity = !editor.enableDocTool ? 0 : 1;
-
-    return Positioned(
-        right: 20,
-        top: 20,
-        child: Container(
-            height: iconSize + iconPadding * 2,
-            color: Colors.transparent,
-            child: AnimatedOpacity(
-              opacity: opacity,
-              duration: Duration(milliseconds: animationDuration),
-              child: Container(
-                  decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius:
-                          BorderRadius.all(const Radius.circular(8.0))),
-                  child: Center(
-                      child: Row(children: [
-                    // Text('  ${editor.currentHighlight()}/${editor.count()} ${editor.hasSelection()}  ', style:TextStyle(color:Colors.white)),
-                    GestureDetector(
-                        onTap: () {
-                          // editor.toggleHighlight();
-                        },
-                        child: Padding(
-                            padding: EdgeInsets.all(iconPadding),
-                            child: Icon(Icons.more,
-                                color: Colors.white, size: iconSize)))
-                  ]))),
-            )));
-  }
-}
 
 class AnnotateTool extends StatelessWidget {
   @override
@@ -106,22 +70,24 @@ class AnnotateTool extends StatelessWidget {
                       borderRadius:
                           BorderRadius.all(const Radius.circular(8.0))),
                   child: Center(
-                      child: Row(children: [
-                    // Text('  ${editor.currentHighlight()}/${editor.count()} ${editor.hasSelection()}  ', style:TextStyle(color:Colors.white)),
-                    GestureDetector(
-                        onTap: () {
-                          editor.toggleHighlight();
-                        },
-                        child: Padding(
-                            padding: EdgeInsets.all(iconPadding),
-                            child: Icon(Icons.border_color,
-                                color: editor.enableHighlight
-                                    ? editor.currentColor()
-                                    : Colors.white,
-                                size: iconSize))),
-                    ...colorIcons,
-                    ...moreIcons,
-                  ]))),
+                      child: opacity == 0
+                          ? Container()
+                          : Row(children: [
+                              // Text('  ${editor.currentHighlight()}/${editor.count()} ${editor.hasSelection()}  ', style:TextStyle(color:Colors.white)),
+                              GestureDetector(
+                                  onTap: () {
+                                    editor.toggleHighlight();
+                                  },
+                                  child: Padding(
+                                      padding: EdgeInsets.all(iconPadding),
+                                      child: Icon(Icons.border_color,
+                                          color: editor.enableHighlight
+                                              ? editor.currentColor()
+                                              : Colors.white,
+                                          size: iconSize))),
+                              ...colorIcons,
+                              ...moreIcons,
+                            ]))),
             )));
   }
 }

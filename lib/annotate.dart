@@ -19,17 +19,6 @@ const bool debugParagraphs = false;
 const String defaultFamily = 'Times';
 const double defaultSize = 24;
 
-Offset getExtents(style) {
-  final TextPainter textPainter = TextPainter(
-      text: TextSpan(text: "?", style: style),
-      maxLines: 1,
-      textDirection: TextDirection.ltr)
-    ..layout(minWidth: 0, maxWidth: double.infinity);
-  double fw = textPainter.size.width;
-  double fh = textPainter.size.height;
-  return Offset(fw, fh);
-}
-
 class HL {
   HL({
     Offset this.start = const Offset(-1, -1),
@@ -184,6 +173,8 @@ class AnnotateDoc {
   var elms = <Object>[];
   var breaks = <int>[];
   var hl = <HL>[];
+  String docId = '';
+  String sourceUrl = '';
 
   List<Color> colors = <Color>[
     Colors.yellow,
@@ -201,6 +192,16 @@ class AnnotateDoc {
     if (doc != null) {
       doc.document = document;
     }
+
+    List<int> cleanBreaks = <int>[];
+    int prev = -1;
+    doc.breaks.forEach((b) {
+      if (prev + 1 == b) return;
+      cleanBreaks.add(b);
+      prev = b;
+    });
+    doc.breaks = cleanBreaks;
+
     return doc;
   }
 
@@ -272,8 +273,7 @@ class AnnotateDoc {
     try {
       var content = await cachedHttpFetch(path, path);
       if (content == null) return false;
-      final parsed = jsonDecode(content);
-      return await loadAnnotations(parsed['content']);
+      return await loadAnnotations(content);
     } catch (err, msg) {
       return false;
     }
@@ -383,6 +383,7 @@ class AnnotateTreeVisitor extends TreeVisitor {
   bool isTrackedMarkup(n) {
     switch (n.localName) {
       case 'b':
+      case 'p':
       case 'u':
       case 'em':
       case 'i':
@@ -406,6 +407,7 @@ class AnnotateTreeVisitor extends TreeVisitor {
 
   bool isBreak(n) {
     switch (n.localName) {
+      case 'p':
       case 'br':
       case 'table':
         return true;

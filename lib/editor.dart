@@ -41,7 +41,8 @@ class _Editor extends State<Editor> {
 
   final _scroller = ScrollController();
   final ScrollTo scrollToController = ScrollTo();
-  late FocusNode focusNode;
+  // late FocusNode
+  FocusNode focusNode = FocusNode();
 
   @override
   void initState() {
@@ -52,11 +53,15 @@ class _Editor extends State<Editor> {
   }
 
   Widget documentHeader() {
-    return Container();
-  }
-
-  List<Widget> tools() {
-    return [AnnotateTool(), DocTool()];
+    return Container(
+        height: 58,
+        child: AppBar(elevation: 0, actions: [
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.more),
+          )
+        ]));
+    // return Container(height: 30);
   }
 
   List<int> getVisibleLines() {
@@ -311,8 +316,14 @@ class _Editor extends State<Editor> {
   }
 
   void _onScroll() {
+    AppModel app = Provider.of<AppModel>(context, listen: false);
     EditorModel editor = Provider.of<EditorModel>(context, listen: false);
-    editor.showDocTool(_scroller.position.pixels == 0);
+    bool scrolled = _scroller.position.pixels != 0;
+    editor.showDocTool(!scrolled);
+    if (app.isInnerScrolled != (scrolled)) {
+      app.isInnerScrolled = (scrolled);
+      app.notifyListeners();
+    }
   }
 
   void _onTapDown(Widget child, Offset pos) {
@@ -409,6 +420,7 @@ class _Editor extends State<Editor> {
     List<Widget> rows = <Widget>[];
     List<Widget> cells = <Widget>[];
     List<HtmlSpan> spans = <HtmlSpan>[];
+
     if (this.doc != null) {
       for (int i = start; i < end; i++) {
         var elm = this.doc?.elms[i];
@@ -422,7 +434,7 @@ class _Editor extends State<Editor> {
           }
           if (m.elm == '/td') {
             cells.add(Expanded(
-                flex: 1,
+                flex: cells.length == 0 ? 1 : 3,
                 child: RichText(
                     text: TextSpan(
                         children:
@@ -449,6 +461,8 @@ class _Editor extends State<Editor> {
         }
       }
     }
+
+    // balance
 
     double padLeftRight = 80;
     return Padding(
@@ -593,14 +607,14 @@ class _Editor extends State<Editor> {
       case 'ctrl+h':
         editor.toggleHighlight();
         break;
-      case 'alt+=':
+      case 'ctrl+=':
         app.textScale += 0.2;
         if (app.textScale > 1.8) {
           app.textScale = 1.8;
         }
         app.notifyListeners();
         break;
-      case 'alt+-':
+      case 'ctrl+-':
         app.textScale -= 0.2;
         if (app.textScale < 0.8) {
           app.textScale = 0.8;
@@ -745,7 +759,10 @@ class _Editor extends State<Editor> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    List<Widget> children = [buildTextList(context), ...tools()];
+    List<Widget> children = [buildTextList(context)];
+
+    [AnnotateTool()].forEach((t) => children.add(t));
+
     return KeyInputListener(
         focusNode: focusNode,
         // onKeyInputText: _onKeyInputText,

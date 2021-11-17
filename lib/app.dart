@@ -15,6 +15,7 @@ import 'annotate.dart';
 import 'providers.dart';
 import 'editor.dart';
 import 'cases.dart';
+import 'laws.dart';
 import 'util.dart';
 
 class App extends StatelessWidget {
@@ -30,7 +31,7 @@ class App extends StatelessWidget {
         backgroundColor: app.background,
         textSelectionTheme: TextSelectionThemeData(
           selectionColor: Color(0xc0c0c0).withOpacity(.5),
-          cursorColor: Color(0xffffff).withOpacity(.6),
+          cursorColor: Colors.black.withOpacity(.6),
           selectionHandleColor: Color(0xc0c0c0).withOpacity(1),
         ),
         scaffoldBackgroundColor: Colors.white);
@@ -38,11 +39,23 @@ class App extends StatelessWidget {
     return MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: themeData,
-        initialRoute: '/juris/search',
+        initialRoute: '/laws/search',
         routes: {
-          '/': (context) =>
-              DefaultTabController(length: app.docs.length, child: CaseView()),
-          '/juris/search': (context) => CaseSearchView()
+          '/': (context) => Scaffold(body: Text('hello')),
+          '/juris/search': (context) => MultiProvider(providers: [
+                ChangeNotifierProvider(create: (context) => CaseSearchModel())
+              ], child: CaseSearchView()),
+          '/juris': (context) => DefaultTabController(
+              initialIndex: app.initialTab,
+              length: app.docs.length,
+              child: CaseView()),
+          '/laws/search': (context) => MultiProvider(providers: [
+                ChangeNotifierProvider(create: (context) => LawSearchModel())
+              ], child: LawSearchView()),
+          '/laws': (context) => DefaultTabController(
+              initialIndex: app.initialTab,
+              length: app.docs.length,
+              child: LawView())
         });
   }
 }

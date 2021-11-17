@@ -16,6 +16,7 @@ import 'touches.dart';
 import 'annotate.dart';
 import 'editor.dart';
 import 'cases.dart';
+import 'laws.dart';
 import 'xpath.dart';
 import 'cache.dart';
 
@@ -29,8 +30,9 @@ void main(List<String> args) async {
   AppModel app = AppModel();
   await app.configure(args);
 
-  runApp(MultiProvider(providers: [
-    ChangeNotifierProvider(create: (context) => app),
-    ChangeNotifierProvider(create: (context) => CaseSearchModel())
-  ], child: App()));
+  // app.openCase('66812');
+
+  runApp(MultiProvider(
+      providers: [ChangeNotifierProvider(create: (context) => app)],
+      child: App()));
 }

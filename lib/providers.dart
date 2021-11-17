@@ -179,6 +179,7 @@ class EditorModel extends ChangeNotifier {
 class AppModel extends ChangeNotifier {
   List<String> args = <String>[];
   List<AnnotateDoc> docs = <AnnotateDoc>[];
+  int initialTab = 0;
 
   String explorerRoot = '~/';
   String editFilePath = '';
@@ -191,6 +192,8 @@ class AppModel extends ChangeNotifier {
   bool showSidebar = false;
   bool showMinimap = false;
   bool openSidebar = false;
+
+  bool isInnerScrolled = false;
 
   // theme
   String themePath = '';
@@ -301,33 +304,67 @@ class AppModel extends ChangeNotifier {
     // loadTheme();
     // await openEditor('./article.html');
     // await openEditor('./cfc47.json');
-    openEditor('https://lawyerly.ph/api-01/juris/view/cfc47').then((doc) {
+    // openEditor('https://lawyerly.ph/api-01/juris/view/cfc47').then((doc) {
+    //   if (doc != null) {
+    //     docs.add(doc);
+    //     notifyListeners();
+
+    //     doc.loadAnnotationFile('./annotations.json').then((success) {
+    //       if (success) {
+    //         // updateHLColors();
+    //         notifyListeners();
+    //       }
+    //     });
+    //   } else {
+    //     print('unable to load content');
+    //     return -1;
+    //   }
+    // });
+
+    return true;
+  }
+
+  Future<int> openCase(String caseId) {
+    for (int i = 0; i < docs.length; i++) {
+      if (docs[i].docId == caseId) {
+        initialTab = i;
+        return Future<int>.value(i);
+      }
+    }
+    // find existing
+    String url = 'https://lawyerly.ph/api-01/juris/view/${caseId}';
+    return openEditor(url).then((doc) {
       if (doc != null) {
         docs.add(doc);
+        doc.docId = caseId;
+        doc.sourceUrl = url;
         notifyListeners();
 
-        doc.loadAnnotationFile('./annotations.json').then((success) {
+        // doc.loadAnnotationFile('./annotations.json').then((success) {
+        String annotationsUrl =
+            'https://lawyerly.ph/api-01/annotations/search?docid=${caseId}&doctype=case&user=1';
+        // print(annotationsUrl);
+        doc.loadAnnotationHttp(annotationsUrl).then((success) {
           if (success) {
-            // updateHLColors();
             notifyListeners();
           }
         });
+
+        initialTab = docs.length - 1;
+        return docs.length - 1;
       } else {
         print('unable to load content');
         return -1;
       }
     });
 
-    return true;
+    // return -1;
   }
 
   Future<AnnotateDoc?> openEditor(String path) {
-    // check if already opened
-
     if (path.contains('.html')) {
       return AnnotateDoc.loadFile(path);
     }
-
     return AnnotateDoc.loadHttp(path);
   }
 
@@ -338,13 +375,18 @@ class AppModel extends ChangeNotifier {
   void loadAppConfig() {}
 }
 
-class CaseSearchModel extends ChangeNotifier {
+class SearchModel extends ChangeNotifier {
   String query = '';
   var result;
   int offset = 0;
   int limits = 0;
   int count = 0;
   bool searching = false;
+
+  String buildQuery(String query) {
+    print('override me');
+    return query;
+  }
 
   void setResult(parsed) {
     print('??${parsed['count']}');
@@ -358,11 +400,10 @@ class CaseSearchModel extends ChangeNotifier {
 
   void search(String query) {
     this.query = query;
-    String q = 'https://lawyerly.ph/api-01/juris/search?q=${query}';
+    String q = buildQuery(query);
 
     searching = true;
     cachedHttpFetch(q, q, sessionOnly: false).then((result) {
-      // people vs sanchez
       if (result != null) {
         var parsed = jsonDecode(result);
         if (parsed != null) {
@@ -375,5 +416,19 @@ class CaseSearchModel extends ChangeNotifier {
       searching = false;
       notifyListeners();
     });
+  }
+}
+
+class CaseSearchModel extends SearchModel {
+  @override
+  String buildQuery(String query) {
+    return 'https://lawyerly.ph/api-01/juris/search?q=${query}';
+  }
+}
+
+class LawSearchModel extends SearchModel {
+  @override
+  String buildQuery(String query) {
+    return 'https://lawyerly.ph/api-01/laws/search?q=${query}';
   }
 }
