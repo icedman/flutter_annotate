@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:path/path.dart' show join;
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common/sqlite_api.dart';
@@ -10,7 +11,9 @@ const String columnId = '_id';
 Database? db;
 
 void initDB() {
-  sqfliteFfiInit();
+  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    sqfliteFfiInit();
+  }
 }
 
 abstract class DbRecord extends CvModelBase {
@@ -23,13 +26,21 @@ Future<Database?> openDB() async {
   }
 
   // if linux
-  var databaseFactory = databaseFactoryFfi;
-  String dbPath =
-      join(await databaseFactory.getDatabasesPath(), 'cache.sqlite');
-  // String dbPath = inMemoryDatabasePath;
-  db = await databaseFactory.openDatabase(dbPath);
+  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    var databaseFactory = databaseFactoryFfi;
+    String dbPath =
+        join(await databaseFactory.getDatabasesPath(), 'cache.sqlite');
+    // String dbPath = inMemoryDatabasePath;
+    db = await databaseFactory.openDatabase(dbPath);
+  }
 
   // if android
+  if (Platform.isAndroid) {
+    String dbPath =
+        join(await getDatabasesPath(), 'cache.sqlite');
+    // String dbPath = inMemoryDatabasePath;
+    db = await openDatabase(dbPath);
+  }
 
   await db?.execute('''
   CREATE TABLE IF NOT EXISTS cache (

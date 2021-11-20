@@ -3,7 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'providers.dart';
+import 'providers/search.dart';
+import 'providers/lawyerly.dart';
+import 'providers/editor.dart';
+import 'providers/app.dart';
+
 import 'editor.dart';
 
 class SearchView extends StatefulWidget {

@@ -13,8 +13,12 @@ import 'keys.dart';
 import 'touches.dart';
 import 'tools.dart';
 import 'annotate.dart';
-import 'providers.dart';
 import 'scrollto.dart';
+
+import 'providers/search.dart';
+import 'providers/lawyerly.dart';
+import 'providers/editor.dart';
+import 'providers/app.dart';
 
 const double paragraphSpacing = 24;
 

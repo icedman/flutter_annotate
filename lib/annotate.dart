@@ -410,6 +410,7 @@ class AnnotateTreeVisitor extends TreeVisitor {
     switch (n.localName) {
       case 'p':
       case 'br':
+      case 'center':
       case 'table':
         return true;
     }
@@ -424,7 +425,7 @@ class AnnotateTreeVisitor extends TreeVisitor {
       case 'h4':
       case 'h5':
       case 'h6':
-      case 'center':
+      // case 'center':
       case 'blockquote':
         return true;
     }

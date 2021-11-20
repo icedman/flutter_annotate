@@ -11,7 +11,6 @@ import 'package:html/dom.dart' show Node;
 import 'package:html/dom_parsing.dart' show TreeVisitor;
 
 import 'app.dart';
-import 'providers.dart';
 import 'touches.dart';
 import 'annotate.dart';
 import 'editor.dart';
@@ -19,6 +18,12 @@ import 'cases.dart';
 import 'laws.dart';
 import 'xpath.dart';
 import 'cache.dart';
+
+import 'providers/search.dart';
+import 'providers/lawyerly.dart';
+import 'providers/editor.dart';
+import 'providers/app.dart';
+import 'providers/profile.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,9 +35,13 @@ void main(List<String> args) async {
   AppModel app = AppModel();
   await app.configure(args);
 
-  // app.openCase('66812');
+  ProfileModel profile = ProfileModel();
+  await profile.init();
 
   runApp(MultiProvider(
-      providers: [ChangeNotifierProvider(create: (context) => app)],
+      providers: [
+        ChangeNotifierProvider(create: (context) => profile),
+        ChangeNotifierProvider(create: (context) => app)
+      ],
       child: App()));
 }

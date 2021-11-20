@@ -12,12 +12,17 @@ import 'package:html/dom_parsing.dart' show TreeVisitor;
 import 'keys.dart';
 import 'touches.dart';
 import 'annotate.dart';
-import 'providers.dart';
 import 'editor.dart';
 import 'home.dart';
 import 'cases.dart';
 import 'laws.dart';
 import 'util.dart';
+
+import 'providers/profile.dart';
+import 'providers/search.dart';
+import 'providers/lawyerly.dart';
+import 'providers/editor.dart';
+import 'providers/app.dart';
 
 class App extends StatelessWidget {
   @override

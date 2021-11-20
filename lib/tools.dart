@@ -8,7 +8,10 @@ import 'package:flutter/services.dart';
 import 'keys.dart';
 import 'touches.dart';
 import 'annotate.dart';
-import 'providers.dart';
+
+import 'providers/editor.dart';
+import 'providers/app.dart';
+
 
 const double paragraphSpacing = 24;
 const double iconSize = 32;
