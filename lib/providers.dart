@@ -4,7 +4,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
+//import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart';
 import 'package:path/path.dart' show join;
 
@@ -209,7 +209,7 @@ class AppModel extends ChangeNotifier {
   // ready
   bool resourcesReady = false;
   // permissions
-  PermissionStatus permissionStatus = PermissionStatus.denied;
+  //PermissionStatus permissionStatus = PermissionStatus.denied;
 
   // extensions
 
@@ -248,37 +248,38 @@ class AppModel extends ChangeNotifier {
   }
 
   bool isReady() {
-    return resourcesReady && permissionStatus == PermissionStatus.granted;
+    //return resourcesReady && permissionStatus == PermissionStatus.granted;
+    return true;
   }
 
   String preReadyMessage() {
-    if (permissionStatus != PermissionStatus.granted) {
-      return 'Please grant storage access and restart.';
-    }
+    //if (permissionStatus != PermissionStatus.granted) {
+    //  return 'Please grant storage access and restart.';
+    //}
     return 'Preparing resources...';
   }
 
   Future<void> queryPermission() async {
-    try {
-      final status = await Permission.manageExternalStorage.request();
-      if (status == PermissionStatus.permanentlyDenied) {
-        print('Permission permanently denied.');
-        await openAppSettings();
-      }
-      permissionStatus = status;
+    //try {
+    //  final status = await Permission.manageExternalStorage.request();
+    //  if (status == PermissionStatus.permanentlyDenied) {
+    //    print('Permission permanently denied.');
+    //    await openAppSettings();
+    //  }
+    //  permissionStatus = status;
 
-      // for android 10 and below
-      if (status == PermissionStatus.restricted) {
-        final status = await Permission.storage.request();
-        if (status == PermissionStatus.permanentlyDenied) {
-          print('Permission permanently denied.');
-          await openAppSettings();
-        }
-        permissionStatus = status;
-      }
-    } catch (error, msg) {
-      permissionStatus = PermissionStatus.granted;
-    }
+    //  // for android 10 and below
+    //  if (status == PermissionStatus.restricted) {
+    //    final status = await Permission.storage.request();
+    //    if (status == PermissionStatus.permanentlyDenied) {
+    //      print('Permission permanently denied.');
+    //      await openAppSettings();
+    //    }
+    //    permissionStatus = status;
+    //  }
+    //} catch (error, msg) {
+    //  permissionStatus = PermissionStatus.granted;
+    //}
   }
 
   Future<bool> configure(List<String> args) async {
@@ -291,7 +292,7 @@ class AppModel extends ChangeNotifier {
     // } else {
     //   print('permission may have been granted already');
     resourcesReady = true;
-    permissionStatus = PermissionStatus.granted;
+    //permissionStatus = PermissionStatus.granted;
     // }
 
     // if (args.length > 0) {
