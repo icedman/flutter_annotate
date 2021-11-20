@@ -474,7 +474,7 @@ class _Editor extends State<Editor> {
 
     // balance
 
-    double padLeftRight = 80;
+    double padLeftRight = 24*2;
     return Padding(
         padding: EdgeInsets.only(
             left: padLeftRight, right: padLeftRight, bottom: 24),
@@ -570,7 +570,7 @@ class _Editor extends State<Editor> {
 
             double padLeftRight = 28;
             if (block) {
-              padLeftRight *= 3;
+              padLeftRight *= 2;
             }
 
             return Padding(

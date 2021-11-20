@@ -4,7 +4,6 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart';
 import 'package:path/path.dart' show join;
 
